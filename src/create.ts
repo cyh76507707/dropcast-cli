@@ -12,7 +12,7 @@
 import { randomUUID } from 'crypto'
 import { parseUnits, formatUnits, formatEther, parseEther } from 'viem'
 import { loadConfig, buildCreatePayload } from './config.js'
-import { resolveCast, getTokenPrice, createCampaign, ApiError } from './api.js'
+import { resolveCast, getTokenPrice, registerCampaignWithRetry, ApiError } from './api.js'
 import { calculateFee, feeToWei, formatFee } from './fees.js'
 import { buildFeeOptions } from './validate.js'
 import { getBalances, getRouterStats, fundCampaign, validateChainId, getWalletClient } from './chain.js'
@@ -59,6 +59,14 @@ export async function createCommand(options: {
 }): Promise<void> {
   // 1. Load config
   const config = loadConfig(options.config)
+
+  // Validate --campaign-id if provided
+  if (options.campaignId) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(options.campaignId)) {
+      throw new Error(`Invalid --campaign-id: "${options.campaignId}". Must be a valid UUID (e.g., 550e8400-e29b-41d4-a716-446655440000).`)
+    }
+  }
   const campaignId = options.campaignId || randomUUID()
 
   // 2. Build fee options
@@ -294,83 +302,52 @@ export async function createCommand(options: {
     baseFeePaid,
   })
 
-  // Retry loop for 202 (pending finality)
-  const maxRetries = 6
-  const retryDelays = [2000, 4000, 8000, 16000, 32000, 60000]
-  let lastStatus = 0
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const { status, data } = await createCampaign(payload as unknown as Record<string, unknown>)
-      lastStatus = status
-
-      if (status === 200 || status === 201) {
-        // Success — clean up recovery file
-        deleteRecoveryFile(campaignId)
-
-        if (options.json) {
-          jsonOutput({
-            success: true,
-            campaignNumber: data.campaign.campaign_number,
-            campaignId,
-            fundingTxHash: txHash,
-            status: data.campaign.status,
-            viewUrl: `https://dropcast.xyz/campaign/${data.campaign.campaign_number}`,
-          })
-        } else {
-          console.log('')
-          console.log('='.repeat(56))
-          console.log('  CAMPAIGN CREATED SUCCESSFULLY')
-          console.log('='.repeat(56))
-          console.log(`  Campaign #:   ${data.campaign.campaign_number}`)
-          console.log(`  Campaign ID:  ${campaignId}`)
-          console.log(`  Funding TX:   ${txHash}`)
-          console.log(`  View:         https://dropcast.xyz/campaign/${data.campaign.campaign_number}`)
-          console.log('='.repeat(56))
-        }
-        return
-      }
-
-      if (status === 202) {
-        const delay = retryDelays[attempt] || 60000
-        log(options.json, `  Pending finality... retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries + 1})`)
-        await sleep(delay)
-        continue
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        // Terminal errors — don't retry
-        if (options.json) {
-          jsonOutput({
-            error: err.message,
-            status: err.status,
-            recoveryFile: recoveryPath,
-            fundingTxHash: txHash,
-          })
-        } else {
-          console.error(`\nERROR: ${err.message}`)
-          console.error(`  Campaign was funded on-chain (tx: ${txHash})`)
-          console.error(`  Recovery file: ${recoveryPath}`)
-          console.error(`  Run: dropcast-cli resume --recovery ${recoveryPath}`)
-        }
-        process.exit(1)
-      }
-      throw err
-    }
-  }
-
-  // Exhausted retries
-  if (options.json) {
-    jsonOutput({
-      error: 'Campaign registration pending finality after max retries',
-      status: lastStatus,
-      recoveryFile: recoveryPath,
-      fundingTxHash: txHash,
+  try {
+    const { status, data } = await registerCampaignWithRetry({
+      payload,
+      json: options.json,
     })
-  } else {
-    console.error(`\nWARNING: Campaign funded but registration still pending after ${maxRetries + 1} attempts.`)
-    console.error(`  Recovery file: ${recoveryPath}`)
-    console.error(`  Run: dropcast-cli resume --recovery ${recoveryPath}`)
+
+    // Success — clean up recovery file
+    deleteRecoveryFile(campaignId)
+
+    if (options.json) {
+      jsonOutput({
+        success: true,
+        campaignNumber: data.campaign.campaign_number,
+        campaignId,
+        fundingTxHash: txHash,
+        status: data.campaign.status,
+        viewUrl: `https://dropcast.xyz/campaign/${data.campaign.campaign_number}`,
+      })
+    } else {
+      console.log('')
+      console.log('='.repeat(56))
+      console.log('  CAMPAIGN CREATED SUCCESSFULLY')
+      console.log('='.repeat(56))
+      console.log(`  Campaign #:   ${data.campaign.campaign_number}`)
+      console.log(`  Campaign ID:  ${campaignId}`)
+      console.log(`  Funding TX:   ${txHash}`)
+      console.log(`  View:         https://dropcast.xyz/campaign/${data.campaign.campaign_number}`)
+      console.log('='.repeat(56))
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (options.json) {
+        jsonOutput({
+          error: err.message,
+          status: err.status,
+          recoveryFile: recoveryPath,
+          fundingTxHash: txHash,
+        })
+      } else {
+        console.error(`\nERROR: ${err.message}`)
+        console.error(`  Campaign was funded on-chain (tx: ${txHash})`)
+        console.error(`  Recovery file: ${recoveryPath}`)
+        console.error(`  Run: dropcast-cli resume --recovery ${recoveryPath}`)
+      }
+      process.exit(1)
+    }
+    throw err
   }
-  process.exit(1)
 }

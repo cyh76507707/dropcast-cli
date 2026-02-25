@@ -7,7 +7,6 @@ import { resolveCast, getTokenPrice } from './api.js'
 import { calculateFee, getFeeBreakdown, formatFee, type CampaignFeeOptions } from './fees.js'
 import { jsonOutput, printDryRunSummary, type DryRunData } from './output.js'
 import { getBalances } from './chain.js'
-import { randomUUID } from 'crypto'
 
 // ============================================
 // Fee Options Builder
@@ -133,10 +132,9 @@ export async function validateCommand(options: {
       tokenBalance,
     })
   } else {
-    const campaignId = randomUUID()
     printDryRunSummary({
       config,
-      campaignId,
+      campaignId: '(preview)',
       feeOptions,
       totalAmount,
       tokenPriceUsd,

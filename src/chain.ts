@@ -28,7 +28,7 @@ const baseChain = defineChain({
   name: 'Base',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://mainnet.base.org'] },
+    default: { http: [process.env.RPC_URL || 'https://mainnet.base.org'] },
   },
   blockExplorers: {
     default: { name: 'BaseScan', url: 'https://basescan.org' },

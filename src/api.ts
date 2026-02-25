@@ -6,6 +6,7 @@
  */
 
 import { getApiBaseUrl } from './constants.js'
+import type { CreateCampaignPayload } from './config.js'
 
 const CLIENT_HEADER = { 'X-Dropcast-Client': 'cli' }
 
@@ -185,7 +186,7 @@ export async function getTokenPrice(tokenAddress: string): Promise<number | null
  * - 403: Authorization failure
  * - 409: Conflict (duplicate txHash or mismatched data)
  */
-export async function createCampaign(payload: Record<string, unknown>): Promise<{
+export async function createCampaign(payload: CreateCampaignPayload): Promise<{
   status: number
   data: CreateCampaignResponse
 }> {
@@ -211,6 +212,46 @@ export async function createCampaign(payload: Record<string, unknown>): Promise<
   }
 
   return { status: res.status, data }
+}
+
+// ============================================
+// Campaign Registration with Retry
+// ============================================
+
+/**
+ * Register campaign via API with exponential backoff retry for 202 (pending finality).
+ * Shared by create and resume commands.
+ */
+export async function registerCampaignWithRetry(params: {
+  payload: CreateCampaignPayload
+  json?: boolean
+}): Promise<{
+  status: number
+  data: CreateCampaignResponse
+}> {
+  const maxRetries = 6
+  const retryDelays = [2000, 4000, 8000, 16000, 32000, 60000]
+  let lastStatus = 0
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { status, data } = await createCampaign(params.payload)
+    lastStatus = status
+
+    if (status === 200 || status === 201) {
+      return { status, data }
+    }
+
+    if (status === 202) {
+      const delay = retryDelays[attempt] || 60000
+      if (!params.json) {
+        console.log(`  Pending finality... retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries + 1})`)
+      }
+      await new Promise((r) => setTimeout(r, delay))
+      continue
+    }
+  }
+
+  throw new ApiError(lastStatus, null, 'Campaign registration pending finality after max retries')
 }
 
 // ============================================

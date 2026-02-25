@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync } from '
 import { join } from 'path'
 import { formatEther } from 'viem'
 import { buildCreatePayload, type CampaignConfig } from './config.js'
-import { resolveCast, createCampaign, ApiError } from './api.js'
+import { resolveCast, registerCampaignWithRetry, ApiError } from './api.js'
 import { calculateFee, feeToWei } from './fees.js'
 import { buildFeeOptions } from './validate.js'
 import { jsonOutput } from './output.js'
@@ -149,69 +149,46 @@ export async function resumeCommand(options: {
     baseFeePaid,
   })
 
-  // Retry for 202
-  const maxRetries = 6
-  const retryDelays = [2000, 4000, 8000, 16000, 32000, 60000]
+  try {
+    const { status, data } = await registerCampaignWithRetry({
+      payload,
+      json: options.json,
+    })
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const { status, data } = await createCampaign(payload as unknown as Record<string, unknown>)
+    // Success — clean up recovery file
+    deleteRecoveryFile(campaignId)
 
-      if (status === 200 || status === 201) {
-        deleteRecoveryFile(campaignId)
-
-        if (options.json) {
-          jsonOutput({
-            success: true,
-            resumed: true,
-            campaignNumber: data.campaign.campaign_number,
-            campaignId,
-            fundingTxHash,
-            status: data.campaign.status,
-            viewUrl: `https://dropcast.xyz/campaign/${data.campaign.campaign_number}`,
-          })
-        } else {
-          console.log('')
-          console.log('='.repeat(56))
-          console.log('  CAMPAIGN RESUMED SUCCESSFULLY')
-          console.log('='.repeat(56))
-          console.log(`  Campaign #:   ${data.campaign.campaign_number}`)
-          console.log(`  Campaign ID:  ${campaignId}`)
-          console.log(`  Status:       ${status === 200 ? 'Already existed (idempotent)' : 'Created'}`)
-          console.log(`  View:         https://dropcast.xyz/campaign/${data.campaign.campaign_number}`)
-          console.log('='.repeat(56))
-        }
-        return
-      }
-
-      if (status === 202) {
-        const delay = retryDelays[attempt] || 60000
-        if (!options.json) {
-          console.log(`  Pending finality... retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries + 1})`)
-        }
-        await new Promise((r) => setTimeout(r, delay))
-        continue
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (options.json) {
-          jsonOutput({ error: err.message, status: err.status })
-        } else {
-          console.error(`\nERROR: ${err.message}`)
-          console.error('Recovery file preserved. Fix the issue and retry.')
-        }
-        process.exit(1)
-      }
-      throw err
+    if (options.json) {
+      jsonOutput({
+        success: true,
+        resumed: true,
+        campaignNumber: data.campaign.campaign_number,
+        campaignId,
+        fundingTxHash,
+        status: data.campaign.status,
+        viewUrl: `https://dropcast.xyz/campaign/${data.campaign.campaign_number}`,
+      })
+    } else {
+      console.log('')
+      console.log('='.repeat(56))
+      console.log('  CAMPAIGN RESUMED SUCCESSFULLY')
+      console.log('='.repeat(56))
+      console.log(`  Campaign #:   ${data.campaign.campaign_number}`)
+      console.log(`  Campaign ID:  ${campaignId}`)
+      console.log(`  Status:       ${status === 200 ? 'Already existed (idempotent)' : 'Created'}`)
+      console.log(`  View:         https://dropcast.xyz/campaign/${data.campaign.campaign_number}`)
+      console.log('='.repeat(56))
     }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (options.json) {
+        jsonOutput({ error: err.message, status: err.status })
+      } else {
+        console.error(`\nERROR: ${err.message}`)
+        console.error('Recovery file preserved. Fix the issue and retry.')
+      }
+      process.exit(1)
+    }
+    throw err
   }
-
-  // Exhausted retries
-  if (options.json) {
-    jsonOutput({ error: 'Still pending finality after max retries' })
-  } else {
-    console.error('WARNING: Still pending finality after max retries.')
-    console.error('Recovery file preserved. Retry later.')
-  }
-  process.exit(1)
 }

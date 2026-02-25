@@ -102,6 +102,13 @@ program
   .command('list')
   .description('List campaigns')
   .option('--status <status>', 'Filter: active, ended, or all', 'active')
+  .hook('preAction', (thisCommand) => {
+    const status = thisCommand.opts().status
+    if (status && !['active', 'ended', 'all'].includes(status)) {
+      console.error(`error: option '--status' must be one of: active, ended, all (received '${status}')`)
+      process.exit(1)
+    }
+  })
   .option('--limit <n>', 'Results per page', '20')
   .option('--offset <n>', 'Offset for pagination', '0')
   .option('--json', 'Output as JSON')
