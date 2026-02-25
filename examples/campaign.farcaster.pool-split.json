@@ -1,0 +1,43 @@
+{
+  "network": "base",
+  "platform": "farcaster",
+  "host": {
+    "fid": 12345,
+    "walletAddress": "0x0000000000000000000000000000000000000000"
+  },
+  "post": {
+    "url": "https://warpcast.com/alice/0xabc123"
+  },
+  "token": {
+    "address": "0xe8f5314e8DBE7EA9978190eC243f7b4258eaD7FB",
+    "symbol": "DR",
+    "decimals": 18,
+    "logoUrl": null
+  },
+  "reward": {
+    "type": "pool_split",
+    "totalAmount": "50000"
+  },
+  "actions": {
+    "follow": true,
+    "like": true,
+    "recast": false,
+    "quote": false,
+    "comment": false,
+    "prefilledQuoteMessage": null
+  },
+  "targeting": {
+    "minFollowers": 10,
+    "minNeynarScore": 0,
+    "minQuotientScore": 0,
+    "requirePro": false,
+    "requireVerifiedOnly": false,
+    "requireProfilePhoto": false,
+    "minAccountAgeDays": 7,
+    "minXFollowers": 0,
+    "baseVerifyTargeting": null
+  },
+  "schedule": {
+    "endsAt": "2026-03-10T00:00:00.000Z"
+  }
+}
