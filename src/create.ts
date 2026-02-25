@@ -24,6 +24,14 @@ import * as readline from 'readline'
 // Helpers
 // ============================================
 
+function log(json: boolean | undefined, ...args: unknown[]): void {
+  if (!json) console.log(...args)
+}
+
+function logError(json: boolean | undefined, ...args: unknown[]): void {
+  if (!json) console.error(...args)
+}
+
 function askConfirmation(message: string): Promise<boolean> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   return new Promise((resolve) => {
@@ -57,6 +65,7 @@ export async function createCommand(options: {
   const feeOptions = buildFeeOptions(config)
   const fee = calculateFee(feeOptions)
   const feeWei = feeToWei(fee)
+  const baseFeePaid = formatEther(feeWei)
 
   // 3. Resolve cast (Farcaster only)
   let castData: {
@@ -69,7 +78,7 @@ export async function createCommand(options: {
   } | undefined
 
   if (config.platform === 'farcaster') {
-    console.log('Resolving cast...')
+    log(options.json, 'Resolving cast...')
     const cast = await resolveCast(config.post.url)
     const imageUrl = cast.embeds?.find(
       (e) => e.metadata?.image?.url
@@ -105,13 +114,25 @@ export async function createCommand(options: {
 
   const totalAmountWei = parseUnits(totalAmount, config.token.decimals)
 
-  // 6. Check balances
-  const { account } = getWalletClient()
-  const balances = await getBalances(
-    account.address,
-    config.token.address as `0x${string}`,
-    config.token.decimals,
-  )
+  // 6. Check balances using config.host.walletAddress (works without PRIVATE_KEY)
+  let ethBalance = '(skipped)'
+  let tokenBalance = '(skipped)'
+  let ethBalanceWei = 0n
+  let tokenBalanceWei = 0n
+
+  try {
+    const balances = await getBalances(
+      config.host.walletAddress as `0x${string}`,
+      config.token.address as `0x${string}`,
+      config.token.decimals,
+    )
+    ethBalance = balances.ethFormatted
+    tokenBalance = balances.tokenFormatted
+    ethBalanceWei = balances.ethBalance
+    tokenBalanceWei = balances.tokenBalance
+  } catch {
+    // Balance check is best-effort during dry-run
+  }
 
   // Dry-run summary
   const dryRunData: DryRunData = {
@@ -121,13 +142,13 @@ export async function createCommand(options: {
     totalAmount,
     tokenPriceUsd,
     budgetUsd: tokenPriceUsd ? Number(totalAmount) * tokenPriceUsd : null,
-    ethBalance: balances.ethFormatted,
-    tokenBalance: balances.tokenFormatted,
+    ethBalance,
+    tokenBalance,
     castPreview: castData ? { author: castData.authorUsername, text: castData.text } : undefined,
   }
 
   if (!options.execute) {
-    // Dry-run mode
+    // Dry-run mode — does NOT require PRIVATE_KEY
     if (options.json) {
       jsonOutput({
         mode: 'dry-run',
@@ -136,10 +157,7 @@ export async function createCommand(options: {
         totalAmount,
         tokenPriceUsd,
         config,
-        balances: {
-          eth: balances.ethFormatted,
-          token: balances.tokenFormatted,
-        },
+        balances: { eth: ethBalance, token: tokenBalance },
         castPreview: castData ? { author: castData.authorUsername, text: castData.text } : undefined,
       })
     } else {
@@ -151,18 +169,43 @@ export async function createCommand(options: {
     return
   }
 
-  // ── Execute Mode ──
+  // ── Execute Mode (requires PRIVATE_KEY) ──
+
+  const { account } = getWalletClient()
+
+  // P1: Verify signing wallet matches config host wallet
+  if (account.address.toLowerCase() !== config.host.walletAddress.toLowerCase()) {
+    const msg = `Wallet mismatch: PRIVATE_KEY wallet ${account.address} != config host.walletAddress ${config.host.walletAddress}. ` +
+      `The backend will reject registration (403) if the funding wallet doesn't match the host. Aborting.`
+    if (options.json) {
+      jsonOutput({ error: msg })
+    } else {
+      console.error(`\nERROR: ${msg}`)
+    }
+    process.exit(1)
+  }
+
+  // Re-fetch balances using the signing wallet (authoritative for execute)
+  const execBalances = await getBalances(
+    account.address,
+    config.token.address as `0x${string}`,
+    config.token.decimals,
+  )
 
   if (!options.json) {
-    printDryRunSummary(dryRunData)
+    printDryRunSummary({
+      ...dryRunData,
+      ethBalance: execBalances.ethFormatted,
+      tokenBalance: execBalances.tokenFormatted,
+    })
   }
 
   // Pre-flight checks
-  console.log('\n--- Pre-flight Checks ---')
+  log(options.json, '\n--- Pre-flight Checks ---')
 
   // Chain ID validation
   await validateChainId()
-  console.log('  Chain ID: Base Mainnet (8453) OK')
+  log(options.json, '  Chain ID: Base Mainnet (8453) OK')
 
   // Router stats + minBaseFee check
   const routerStats = await getRouterStats()
@@ -176,13 +219,13 @@ export async function createCommand(options: {
     }
     process.exit(1)
   }
-  console.log(`  Router minBaseFee: ${routerStats.minBaseFeeEth} ETH (local: ${formatFee(fee)}) OK`)
+  log(options.json, `  Router minBaseFee: ${routerStats.minBaseFeeEth} ETH (local: ${formatFee(fee)}) OK`)
 
   // Balance checks
   const gasBuffer = parseEther('0.001')
   const ethNeeded = feeWei + gasBuffer
-  if (balances.ethBalance < ethNeeded) {
-    const msg = `Insufficient ETH. Need ~${formatEther(ethNeeded)} (fee + gas), have ${balances.ethFormatted}.`
+  if (execBalances.ethBalance < ethNeeded) {
+    const msg = `Insufficient ETH. Need ~${formatEther(ethNeeded)} (fee + gas), have ${execBalances.ethFormatted}.`
     if (options.json) {
       jsonOutput({ error: msg })
     } else {
@@ -190,10 +233,10 @@ export async function createCommand(options: {
     }
     process.exit(1)
   }
-  console.log(`  ETH balance: ${balances.ethFormatted} (need ~${formatEther(ethNeeded)}) OK`)
+  log(options.json, `  ETH balance: ${execBalances.ethFormatted} (need ~${formatEther(ethNeeded)}) OK`)
 
-  if (balances.tokenBalance < totalAmountWei) {
-    const msg = `Insufficient ${config.token.symbol}. Need ${totalAmount}, have ${balances.tokenFormatted}.`
+  if (execBalances.tokenBalance < totalAmountWei) {
+    const msg = `Insufficient ${config.token.symbol}. Need ${totalAmount}, have ${execBalances.tokenFormatted}.`
     if (options.json) {
       jsonOutput({ error: msg })
     } else {
@@ -201,8 +244,8 @@ export async function createCommand(options: {
     }
     process.exit(1)
   }
-  console.log(`  ${config.token.symbol} balance: ${balances.tokenFormatted} (need ${totalAmount}) OK`)
-  console.log('--- Pre-flight OK ---')
+  log(options.json, `  ${config.token.symbol} balance: ${execBalances.tokenFormatted} (need ${totalAmount}) OK`)
+  log(options.json, '--- Pre-flight OK ---')
 
   // Confirmation
   if (!options.yes && !options.json) {
@@ -214,7 +257,7 @@ export async function createCommand(options: {
   }
 
   // ── On-chain funding ──
-  console.log('\n[1/2] Funding campaign on-chain...')
+  log(options.json, '\n[1/2] Funding campaign on-chain...')
 
   const { txHash, approvalTxHash } = await fundCampaign({
     tokenAddress: config.token.address as `0x${string}`,
@@ -224,22 +267,23 @@ export async function createCommand(options: {
   })
 
   if (approvalTxHash) {
-    console.log(`  Approval tx: ${approvalTxHash}`)
+    log(options.json, `  Approval tx: ${approvalTxHash}`)
   }
-  console.log(`  Funding tx:  ${txHash}`)
+  log(options.json, `  Funding tx:  ${txHash}`)
 
-  // Write recovery file BEFORE API call
+  // Write recovery file BEFORE API call (includes baseFeePaid for resume accuracy)
   const recoveryData = {
     campaignId,
     fundingTxHash: txHash,
+    baseFeePaid,
     config,
     createdAt: new Date().toISOString(),
   }
   const recoveryPath = writeRecoveryFile(recoveryData)
-  console.log(`  Recovery file: ${recoveryPath}`)
+  log(options.json, `  Recovery file: ${recoveryPath}`)
 
   // ── Register via API ──
-  console.log('\n[2/2] Registering campaign via API...')
+  log(options.json, '\n[2/2] Registering campaign via API...')
 
   const payload = buildCreatePayload({
     campaignId,
@@ -247,7 +291,7 @@ export async function createCommand(options: {
     castData,
     totalAmount,
     fundingTxHash: txHash.toLowerCase(),
-    baseFeePaid: formatEther(feeWei),
+    baseFeePaid,
   })
 
   // Retry loop for 202 (pending finality)
@@ -289,9 +333,7 @@ export async function createCommand(options: {
 
       if (status === 202) {
         const delay = retryDelays[attempt] || 60000
-        if (!options.json) {
-          console.log(`  Pending finality... retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries + 1})`)
-        }
+        log(options.json, `  Pending finality... retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries + 1})`)
         await sleep(delay)
         continue
       }

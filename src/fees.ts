@@ -2,6 +2,7 @@
  * Dynamic Fee Calculation for DropCast Campaigns
  *
  * Synced from dropcast/lib/fees.ts @ 97f74d0
+ * Partial sync: omitted formatEther import and getFeeRangeDescription() (unused in CLI).
  * DO NOT edit manually — sync from the dropcast repo when fees change.
  *
  * [BE-056] Updated Fee Structure (2026-01-21)

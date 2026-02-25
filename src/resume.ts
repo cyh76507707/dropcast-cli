@@ -6,7 +6,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync } from 'fs'
-import { join, dirname } from 'path'
+import { join } from 'path'
 import { formatEther } from 'viem'
 import { buildCreatePayload, type CampaignConfig } from './config.js'
 import { resolveCast, createCampaign, ApiError } from './api.js'
@@ -24,6 +24,7 @@ const RECOVERY_DIR = '.dropcast-cli'
 export interface RecoveryData {
   campaignId: string
   fundingTxHash: string
+  baseFeePaid?: string
   config: CampaignConfig
   createdAt: string
 }
@@ -126,10 +127,17 @@ export async function resumeCommand(options: {
     totalAmount = config.reward.totalAmount
   }
 
-  // 4. Calculate fee for payload
-  const feeOptions = buildFeeOptions(config)
-  const fee = calculateFee(feeOptions)
-  const feeWei = feeToWei(fee)
+  // 4. Determine baseFeePaid — use stored value if available, recalculate as fallback
+  let baseFeePaid: string
+  if (recovery.baseFeePaid) {
+    baseFeePaid = recovery.baseFeePaid
+  } else {
+    // Fallback for recovery files written before baseFeePaid was stored
+    const feeOptions = buildFeeOptions(config)
+    const fee = calculateFee(feeOptions)
+    const feeWei = feeToWei(fee)
+    baseFeePaid = formatEther(feeWei)
+  }
 
   // 5. Build and send payload
   const payload = buildCreatePayload({
@@ -138,7 +146,7 @@ export async function resumeCommand(options: {
     castData,
     totalAmount,
     fundingTxHash: fundingTxHash.toLowerCase(),
-    baseFeePaid: formatEther(feeWei),
+    baseFeePaid,
   })
 
   // Retry for 202

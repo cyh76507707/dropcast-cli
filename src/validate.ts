@@ -14,11 +14,15 @@ import { randomUUID } from 'crypto'
 // ============================================
 
 export function buildFeeOptions(config: CampaignConfig): CampaignFeeOptions {
+  // X campaigns use proof-of-read — backend forces all actions to false.
+  // Do NOT include action fees for X campaigns (Section 7.1.6).
+  const isX = config.platform === 'x'
+
   return {
-    requireLike: config.actions.like,
-    requireRecast: config.actions.recast,
-    requireQuote: config.actions.quote,
-    requireComment: config.actions.comment,
+    requireLike: isX ? false : config.actions.like,
+    requireRecast: isX ? false : config.actions.recast,
+    requireQuote: isX ? false : config.actions.quote,
+    requireComment: isX ? false : config.actions.comment,
     minFollowers: config.targeting.minFollowers,
     minNeynarScore: config.targeting.minNeynarScore,
     minQuotientScore: config.targeting.minQuotientScore,
@@ -30,7 +34,7 @@ export function buildFeeOptions(config: CampaignConfig): CampaignFeeOptions {
     baseVerifyProviderCount: config.targeting.baseVerifyTargeting
       ? Object.keys(config.targeting.baseVerifyTargeting).length
       : 0,
-    isXCampaign: config.platform === 'x',
+    isXCampaign: isX,
     rewardType: config.reward.type,
   }
 }

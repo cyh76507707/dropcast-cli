@@ -195,14 +195,19 @@ export async function createCampaign(payload: Record<string, unknown>): Promise<
     body: JSON.stringify(payload),
   })
 
-  const data = await res.json()
+  let data: CreateCampaignResponse
+  try {
+    data = await res.json()
+  } catch {
+    throw new ApiError(res.status, null, `Campaign creation failed (${res.status}): non-JSON response from server`)
+  }
 
   if (res.status === 202) {
     return { status: 202, data }
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, data, `Campaign creation failed (${res.status}): ${data.error || JSON.stringify(data)}`)
+    throw new ApiError(res.status, data, `Campaign creation failed (${res.status}): ${(data as unknown as { error?: string }).error || JSON.stringify(data)}`)
   }
 
   return { status: res.status, data }

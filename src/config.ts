@@ -30,7 +30,7 @@ export const campaignConfigSchema = z.object({
   token: z.object({
     address: z.string().regex(ethAddressRegex, 'Invalid token address'),
     symbol: z.string().min(1).max(20),
-    decimals: z.number().int().min(0).max(18),
+    decimals: z.number().int().min(0).max(77),
     logoUrl: z.string().url().nullable().optional(),
   }),
 
