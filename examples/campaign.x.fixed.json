@@ -1,0 +1,44 @@
+{
+  "network": "base",
+  "platform": "x",
+  "host": {
+    "fid": 12345,
+    "walletAddress": "0x0000000000000000000000000000000000000000"
+  },
+  "post": {
+    "url": "https://x.com/bob/status/9876543210"
+  },
+  "token": {
+    "address": "0xe8f5314e8DBE7EA9978190eC243f7b4258eaD7FB",
+    "symbol": "DR",
+    "decimals": 18,
+    "logoUrl": null
+  },
+  "reward": {
+    "type": "fixed",
+    "amountPerUser": "200",
+    "maxParticipants": 25
+  },
+  "actions": {
+    "follow": false,
+    "like": false,
+    "recast": false,
+    "quote": false,
+    "comment": false,
+    "prefilledQuoteMessage": null
+  },
+  "targeting": {
+    "minFollowers": 0,
+    "minNeynarScore": 0,
+    "minQuotientScore": 0,
+    "requirePro": false,
+    "requireVerifiedOnly": false,
+    "requireProfilePhoto": false,
+    "minAccountAgeDays": 7,
+    "minXFollowers": 10,
+    "baseVerifyTargeting": null
+  },
+  "schedule": {
+    "endsAt": "2026-03-12T00:00:00.000Z"
+  }
+}

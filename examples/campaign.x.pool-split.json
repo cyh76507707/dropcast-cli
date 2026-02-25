@@ -1,0 +1,43 @@
+{
+  "network": "base",
+  "platform": "x",
+  "host": {
+    "fid": 12345,
+    "walletAddress": "0x0000000000000000000000000000000000000000"
+  },
+  "post": {
+    "url": "https://x.com/alice/status/1234567890"
+  },
+  "token": {
+    "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "symbol": "USDC",
+    "decimals": 6,
+    "logoUrl": null
+  },
+  "reward": {
+    "type": "pool_split",
+    "totalAmount": "100"
+  },
+  "actions": {
+    "follow": false,
+    "like": false,
+    "recast": false,
+    "quote": false,
+    "comment": false,
+    "prefilledQuoteMessage": null
+  },
+  "targeting": {
+    "minFollowers": 0,
+    "minNeynarScore": 0,
+    "minQuotientScore": 0,
+    "requirePro": false,
+    "requireVerifiedOnly": false,
+    "requireProfilePhoto": false,
+    "minAccountAgeDays": 7,
+    "minXFollowers": 10,
+    "baseVerifyTargeting": null
+  },
+  "schedule": {
+    "endsAt": "2026-03-08T00:00:00.000Z"
+  }
+}
