@@ -12,7 +12,7 @@
 import { randomUUID } from 'crypto'
 import { parseUnits, formatUnits, formatEther, parseEther } from 'viem'
 import { loadConfig, buildCreatePayload } from './config.js'
-import { resolveCast, getTokenPrice, registerCampaignWithRetry, ApiError } from './api.js'
+import { resolveCast, getTokenPrice, registerCampaignWithRetry, getVerifiedAddresses, ApiError } from './api.js'
 import { calculateFee, feeToWei, formatFee } from './fees.js'
 import { buildFeeOptions } from './validate.js'
 import { getBalances, getRouterStats, fundCampaign, validateChainId, getWalletClient } from './chain.js'
@@ -185,6 +185,36 @@ export async function createCommand(options: {
   if (account.address.toLowerCase() !== config.host.walletAddress.toLowerCase()) {
     const msg = `Wallet mismatch: PRIVATE_KEY wallet ${account.address} != config host.walletAddress ${config.host.walletAddress}. ` +
       `The backend will reject registration (403) if the funding wallet doesn't match the host. Aborting.`
+    if (options.json) {
+      jsonOutput({ error: msg })
+    } else {
+      console.error(`\nERROR: ${msg}`)
+    }
+    process.exit(1)
+  }
+
+  // P2: Verify wallet is a verified address for host FID (prevents 403 after funding)
+  try {
+    const { verified_addresses } = await getVerifiedAddresses(config.host.fid)
+    const normalizedAddresses = verified_addresses.map(a => a.toLowerCase())
+    if (!normalizedAddresses.includes(account.address.toLowerCase())) {
+      const msg = `Wallet ${account.address} is not a verified address for FID ${config.host.fid}. ` +
+        `Connect it on Warpcast (Settings → Connected Addresses) and retry.`
+      if (options.json) {
+        jsonOutput({ error: msg, fid: config.host.fid, wallet: account.address, verified_addresses })
+      } else {
+        console.error(`\nERROR: ${msg}`)
+        console.error(`Verified addresses for FID ${config.host.fid}: ${verified_addresses.join(', ') || '(none)'}`)
+      }
+      process.exit(1)
+    }
+  } catch (err) {
+    // Hard-fail: if the pre-flight check fails, do not proceed to funding.
+    // Proceeding would risk locking funds on-chain if the backend later returns 403.
+    // Re-throw if this was triggered by process.exit or the wallet check itself
+    if (err instanceof Error && (err.message?.includes('process.exit') || err.message?.includes('not a verified address'))) throw err
+    const errMsg = err instanceof Error ? err.message : String(err)
+    const msg = `Cannot verify wallet-FID binding: ${errMsg}. Aborting to prevent funding without verification.`
     if (options.json) {
       jsonOutput({ error: msg })
     } else {

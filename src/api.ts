@@ -297,3 +297,22 @@ export async function listCampaigns(params: {
 
   return (await res.json()) as CampaignListResponse
 }
+
+/**
+ * Get verified addresses for a FID. Triggers server-side refresh if stale.
+ * Used for pre-flight wallet-FID check before on-chain funding.
+ */
+export async function getVerifiedAddresses(fid: number): Promise<{
+  fid: number
+  verified_addresses: string[]
+  refreshed: boolean
+}> {
+  const res = await apiFetch(`/api/user/verified-addresses?fid=${fid}`)
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(res.status, body, `Failed to fetch verified addresses for FID ${fid}: ${(body as { error?: string }).error || res.statusText}`)
+  }
+
+  return (await res.json()) as { fid: number; verified_addresses: string[]; refreshed: boolean }
+}

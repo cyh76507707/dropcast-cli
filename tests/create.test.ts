@@ -12,6 +12,7 @@ const {
   mockResolveCast,
   mockGetTokenPrice,
   mockRegisterCampaignWithRetry,
+  mockGetVerifiedAddresses,
   MockApiError,
   mockGetBalances,
   mockGetRouterStats,
@@ -35,6 +36,7 @@ const {
     mockResolveCast: vi.fn(),
     mockGetTokenPrice: vi.fn(),
     mockRegisterCampaignWithRetry: vi.fn(),
+    mockGetVerifiedAddresses: vi.fn(),
     MockApiError,
     mockGetBalances: vi.fn(),
     mockGetRouterStats: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock('../src/api.js', () => ({
   resolveCast: mockResolveCast,
   getTokenPrice: mockGetTokenPrice,
   registerCampaignWithRetry: mockRegisterCampaignWithRetry,
+  getVerifiedAddresses: mockGetVerifiedAddresses,
   ApiError: MockApiError,
 }))
 
@@ -110,6 +113,11 @@ function setupDefaultMocks() {
   mockGetWalletClient.mockReturnValue({
     account: { address: '0x0000000000000000000000000000000000000000' },
     walletClient: {},
+  })
+  mockGetVerifiedAddresses.mockResolvedValue({
+    fid: 12345,
+    verified_addresses: ['0x0000000000000000000000000000000000000000'],
+    refreshed: false,
   })
   mockWriteRecoveryFile.mockReturnValue('.dropcast-cli/test-id.json')
   mockDeleteRecoveryFile.mockReturnValue(undefined)
@@ -185,6 +193,65 @@ describe('createCommand', () => {
         config: CONFIG_PATH,
         execute: true,
         yes: true,
+      }),
+    ).rejects.toThrow(/process\.exit\(1\)/)
+
+    expect(process.exit).toHaveBeenCalledWith(1)
+    expect(mockFundCampaign).not.toHaveBeenCalled()
+
+    vi.mocked(console.error).mockRestore?.()
+    vi.mocked(console.log).mockRestore?.()
+  })
+
+  it('execute exits when wallet not in verified addresses for FID', async () => {
+    // Wallet matches config but is NOT in verified_addresses
+    mockGetVerifiedAddresses.mockResolvedValueOnce({
+      fid: 12345,
+      verified_addresses: ['0x1111111111111111111111111111111111111111'],
+      refreshed: true,
+    })
+
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await expect(
+      createCommand({
+        config: CONFIG_PATH,
+        execute: true,
+        yes: true,
+        json: true,
+      }),
+    ).rejects.toThrow(/process\.exit\(1\)/)
+
+    expect(process.exit).toHaveBeenCalledWith(1)
+    expect(mockFundCampaign).not.toHaveBeenCalled()
+
+    // JSON output should contain the error
+    const consoleSpy = vi.mocked(console.log)
+    const lastCall = consoleSpy.mock.calls[consoleSpy.mock.calls.length - 1]
+    const parsed = JSON.parse(lastCall[0] as string)
+    expect(parsed.error).toContain('not a verified address')
+    expect(parsed.verified_addresses).toBeDefined()
+
+    vi.mocked(console.error).mockRestore?.()
+    vi.mocked(console.log).mockRestore?.()
+  })
+
+  it('execute aborts when verified-addresses endpoint is unavailable', async () => {
+    // Endpoint fails — should hard-fail to prevent funding without verification
+    mockGetVerifiedAddresses.mockRejectedValueOnce(
+      new MockApiError(500, null, 'Internal server error'),
+    )
+
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await expect(
+      createCommand({
+        config: CONFIG_PATH,
+        execute: true,
+        yes: true,
+        json: true,
       }),
     ).rejects.toThrow(/process\.exit\(1\)/)
 
