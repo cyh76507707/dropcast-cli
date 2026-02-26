@@ -237,26 +237,29 @@ describe('createCommand', () => {
     vi.mocked(console.log).mockRestore?.()
   })
 
-  it('execute proceeds when verified-addresses endpoint is unavailable', async () => {
-    // Endpoint fails — should warn but not block
+  it('execute aborts when verified-addresses endpoint is unavailable', async () => {
+    // Endpoint fails — should hard-fail to prevent funding without verification
     mockGetVerifiedAddresses.mockRejectedValueOnce(
       new MockApiError(500, null, 'Internal server error'),
     )
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(() => {})
 
-    await createCommand({
-      config: CONFIG_PATH,
-      execute: true,
-      yes: true,
-      json: true,
-    })
+    await expect(
+      createCommand({
+        config: CONFIG_PATH,
+        execute: true,
+        yes: true,
+        json: true,
+      }),
+    ).rejects.toThrow(/process\.exit\(1\)/)
 
-    // Should still proceed to fund and register
-    expect(mockFundCampaign).toHaveBeenCalledOnce()
-    expect(mockRegisterCampaignWithRetry).toHaveBeenCalledOnce()
+    expect(process.exit).toHaveBeenCalledWith(1)
+    expect(mockFundCampaign).not.toHaveBeenCalled()
 
-    consoleSpy.mockRestore()
+    vi.mocked(console.error).mockRestore?.()
+    vi.mocked(console.log).mockRestore?.()
   })
 
   it('execute succeeds: fund -> register -> success output', async () => {

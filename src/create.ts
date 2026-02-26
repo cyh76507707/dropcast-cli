@@ -196,7 +196,8 @@ export async function createCommand(options: {
   // P2: Verify wallet is a verified address for host FID (prevents 403 after funding)
   try {
     const { verified_addresses } = await getVerifiedAddresses(config.host.fid)
-    if (!verified_addresses.includes(account.address.toLowerCase())) {
+    const normalizedAddresses = verified_addresses.map(a => a.toLowerCase())
+    if (!normalizedAddresses.includes(account.address.toLowerCase())) {
       const msg = `Wallet ${account.address} is not a verified address for FID ${config.host.fid}. ` +
         `Connect it on Warpcast (Settings → Connected Addresses) and retry.`
       if (options.json) {
@@ -208,11 +209,18 @@ export async function createCommand(options: {
       process.exit(1)
     }
   } catch (err) {
-    // Non-fatal: if the endpoint is unavailable, warn and proceed (backend will catch it)
-    if (!(err instanceof ApiError)) throw err
-    if (!options.json) {
-      console.error(`\nWARNING: Could not verify wallet-FID binding (${err.message}). Proceeding — backend will validate.`)
+    // Hard-fail: if the pre-flight check fails, do not proceed to funding.
+    // Proceeding would risk locking funds on-chain if the backend later returns 403.
+    // Re-throw if this was triggered by process.exit or the wallet check itself
+    if (err instanceof Error && (err.message?.includes('process.exit') || err.message?.includes('not a verified address'))) throw err
+    const errMsg = err instanceof Error ? err.message : String(err)
+    const msg = `Cannot verify wallet-FID binding: ${errMsg}. Aborting to prevent funding without verification.`
+    if (options.json) {
+      jsonOutput({ error: msg })
+    } else {
+      console.error(`\nERROR: ${msg}`)
     }
+    process.exit(1)
   }
 
   // Re-fetch balances using the signing wallet (authoritative for execute)
