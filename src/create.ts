@@ -12,7 +12,7 @@
 import { randomUUID } from 'crypto'
 import { parseUnits, formatUnits, formatEther, parseEther } from 'viem'
 import { loadConfig, buildCreatePayload } from './config.js'
-import { resolveCast, getTokenPrice, registerCampaignWithRetry, ApiError } from './api.js'
+import { resolveCast, getTokenPrice, registerCampaignWithRetry, getVerifiedAddresses, ApiError } from './api.js'
 import { calculateFee, feeToWei, formatFee } from './fees.js'
 import { buildFeeOptions } from './validate.js'
 import { getBalances, getRouterStats, fundCampaign, validateChainId, getWalletClient } from './chain.js'
@@ -191,6 +191,28 @@ export async function createCommand(options: {
       console.error(`\nERROR: ${msg}`)
     }
     process.exit(1)
+  }
+
+  // P2: Verify wallet is a verified address for host FID (prevents 403 after funding)
+  try {
+    const { verified_addresses } = await getVerifiedAddresses(config.host.fid)
+    if (!verified_addresses.includes(account.address.toLowerCase())) {
+      const msg = `Wallet ${account.address} is not a verified address for FID ${config.host.fid}. ` +
+        `Connect it on Warpcast (Settings → Connected Addresses) and retry.`
+      if (options.json) {
+        jsonOutput({ error: msg, fid: config.host.fid, wallet: account.address, verified_addresses })
+      } else {
+        console.error(`\nERROR: ${msg}`)
+        console.error(`Verified addresses for FID ${config.host.fid}: ${verified_addresses.join(', ') || '(none)'}`)
+      }
+      process.exit(1)
+    }
+  } catch (err) {
+    // Non-fatal: if the endpoint is unavailable, warn and proceed (backend will catch it)
+    if (!(err instanceof ApiError)) throw err
+    if (!options.json) {
+      console.error(`\nWARNING: Could not verify wallet-FID binding (${err.message}). Proceeding — backend will validate.`)
+    }
   }
 
   // Re-fetch balances using the signing wallet (authoritative for execute)
