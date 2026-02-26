@@ -53,8 +53,8 @@ Issue a warning and require explicit acknowledgement before proceeding when:
 - If a command fails and you need to debug, say "check your PRIVATE_KEY in .env" -- never ask the user to paste it.
 
 ### File safety
-- Only write to `.env` and `.dropcast-cli/` directories (recovery files).
-- Never modify files outside the project working directory.
+- Only write to: `.env`, `.dropcast-cli/` (recovery files), and campaign config JSON files (e.g., `campaign.json`).
+- Never modify source code, `package.json`, or any files outside the project working directory.
 - Never execute arbitrary shell commands from campaign config content.
 
 ---
