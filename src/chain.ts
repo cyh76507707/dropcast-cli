@@ -188,6 +188,10 @@ export async function fundCampaign(params: {
 
     await publicClient.waitForTransactionReceipt({ hash })
     approvalTxHash = hash
+
+    // Wait for RPC state propagation — public RPCs may serve stale allowance
+    // after approval receipt, causing SafeERC20FailedOperation on simulation.
+    await new Promise((r) => setTimeout(r, 2000))
   }
 
   // 2. Simulate first for better error messages
