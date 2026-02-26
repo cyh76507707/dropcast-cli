@@ -1,6 +1,6 @@
 {
   "name": "dropcast-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CLI + Agent Skill for creating DropCast campaigns via API",
   "type": "module",
   "bin": {
