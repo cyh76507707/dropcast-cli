@@ -40,7 +40,7 @@ Fields the agent **must** replace from user/context:
 - `host.fid` -- the user's Farcaster FID (integer). For Farcaster campaigns, suggest from cast author; for X, must ask.
 - `host.walletAddress` -- the user's wallet address (0x...)
 - `post.url` -- the Warpcast or X post URL
-- `schedule.endsAt` -- computed as `now + 24h` by default, or from user input
+- `schedule.endsAt` -- **must always be overwritten**. Compute as `now + 24h` by default, or from user input. The template uses `2099-12-31` as a placeholder — never submit this value.
 
 Fields the agent replaces **only if user specifies non-default values**:
 - `token.address`, `token.symbol`, `token.decimals` -- only if not using USDC

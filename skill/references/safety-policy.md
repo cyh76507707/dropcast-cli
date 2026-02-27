@@ -109,5 +109,5 @@ Before any `--execute` run, verify all of these:
 - [ ] `host.walletAddress` matches the `PRIVATE_KEY` wallet
 - [ ] ETH balance covers fee + gas (~0.005 ETH)
 - [ ] Token balance covers `totalAmount`
-- [ ] `endsAt` is in the future
+- [ ] `endsAt` is in the future and is NOT the template placeholder (`2099-12-31`)
 - [ ] No existing recovery file for the same campaign ID (would indicate a prior failed attempt -- use `resume` instead)

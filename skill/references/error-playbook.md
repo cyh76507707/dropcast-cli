@@ -138,8 +138,8 @@ These occur when the CLI calls `POST /api/campaigns` or other API endpoints.
 ### 400 -- `fee_insufficient` (quota surcharge mismatch)
 - **Cause**: The ETH fee paid on-chain does not include the expected quota surcharge. The backend recalculates the expected fee server-side (including quota surcharge based on eligible user count) and compares it against the on-chain decoded fee (with one-tier tolerance). If the paid fee is too low, registration is rejected.
 - **This is a post-funding error**: The on-chain transaction already succeeded, but API registration failed. A recovery file exists at `.dropcast-cli/<campaignId>.json`.
-- **Fix**: Do NOT re-run `create --execute` (funds are already on-chain). The user needs to understand the fee shortfall. Show the expected vs actual fee from the error response. A CLI update to pre-calculate quota surcharge locally is planned. In the meantime, use `resume` after the backend team adjusts, or contact DropCast support.
-- **Prevention**: For campaigns with large eligible audiences, consider adding a fee buffer by using more targeting options (which increase the fee) or waiting for the CLI surcharge calculation update.
+- **Fix**: **Do NOT re-run `create --execute`** — funds are already on-chain and re-running would double-spend. Preserve the recovery file. Show the expected vs actual fee from the error response. Use `resume` if the backend team adjusts the fee tolerance, otherwise contact DropCast support.
+- **Prevention**: A CLI update to pre-calculate quota surcharge locally is planned. Until then, campaigns with large eligible audiences are at risk of this error.
 
 ### 403 -- Authorization failure
 - **Cause**: The wallet that funded the campaign does not match the `hostWalletAddress` in the payload, or the host FID is not authorized.
