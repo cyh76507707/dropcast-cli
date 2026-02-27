@@ -66,27 +66,28 @@ Discriminated union on `reward.type`:
 | Field | Type | Required | Default | Resolution notes |
 |-------|------|----------|---------|------------------|
 | `actions.follow` | boolean | No | `true` | Follow the host. Default engagement action. |
-| `actions.like` | boolean | No | `false` | Like the cast/post. |
-| `actions.recast` | boolean | No | `false` | Recast (Farcaster retweet equivalent). |
+| `actions.like` | boolean | No | `false` | Like the cast/post. **Farcaster default: `true`** |
+| `actions.recast` | boolean | No | `false` | Recast (Farcaster retweet equivalent). **Farcaster default: `true`** |
 | `actions.quote` | boolean | No | `false` | Quote the cast. |
 | `actions.comment` | boolean | No | `false` | Comment / reply on the cast. |
 | `actions.prefilledQuoteMessage` | string (max 350) \| null | No | `null` | Pre-filled text for quote action. Only relevant when `quote: true`. |
 
 > **X campaign override**: When `platform === "x"`, all action fields are forced to `false` by `buildFeeOptions()`. X campaigns use proof-of-read verification only. The config file can set them however it wants -- the CLI ignores them for fee calculation and the backend ignores them for verification.
+>
+> **Platform defaults**: Farcaster templates default to `follow: true, like: true, recast: true`. X templates default to all actions `false`. These are agent-layer defaults in the template files; the Zod schema defaults remain unchanged.
 
 ### `targeting`
 
 | Field | Type | Required | Default | Resolution notes |
 |-------|------|----------|---------|------------------|
-| `targeting.minFollowers` | int, >= 0 | No | `0` | Minimum Farcaster follower count. |
+| `targeting.minFollowers` | int, >= 0 | No | `0` | Minimum Farcaster follower count. Default 20 for Farcaster campaigns. |
 | `targeting.minNeynarScore` | number, 0-1 | No | `0` | Neynar social score. 0.5 = moderate quality, 0.8 = high. |
 | `targeting.minQuotientScore` | number, >= 0 | No | `0` | Quotient engagement score. |
 | `targeting.requirePro` | boolean | No | `false` | Require Farcaster Pro subscription. |
 | `targeting.requireVerifiedOnly` | boolean | No | `false` | Exclude spam-labeled accounts. |
 | `targeting.requireProfilePhoto` | boolean | No | `false` | Require profile photo (anti-bot). |
-| `targeting.minAccountAgeDays` | int, >= 0 | No | `0` | Minimum account age in days. |
-| `targeting.minXFollowers` | int, >= 0 | No | `0` | X/Twitter minimum followers. Relevant for X campaigns. |
-| `targeting.baseVerifyTargeting` | `Record<string, unknown> \| null` | No | `null` | Base Verify provider requirements. Fee = 0.0004 ETH per provider key. |
+| `targeting.minAccountAgeDays` | int, >= 0 | No | `0` | Minimum account age in days. Default 7 for Farcaster campaigns. |
+| `targeting.minXFollowers` | int, >= 0 | No | `0` | X/Twitter minimum followers. Default 20 for X campaigns. |
 
 ### `schedule`
 
@@ -96,11 +97,31 @@ Discriminated union on `reward.type`:
 
 ---
 
-## 3. Preset Keywords
+## 3. Agent Recommended Presets
 
-When the user says a tier keyword, apply these targeting defaults. User-specified values always override presets.
+When the user doesn't specify targeting, apply these agent-recommended presets. User-specified values always override presets.
 
-### `broad` / `T1` -- Maximum reach
+> **Note**: These are opinionated defaults for CLI agent workflows, not the `dropcast.xyz` web app defaults. The web app uses all-zero/false targeting and no default token. These presets provide sensible starting points for natural-language-to-campaign flows.
+
+### `default (Farcaster)`
+
+Actions: `follow: true`, `like: true`, `recast: true`
+Targeting: `minFollowers: 20`, `minAccountAgeDays: 7`
+
+This is the standard Farcaster campaign configuration. Fee: ~0.0018 ETH.
+
+### `default (X)`
+
+Actions: all `false` (proof-of-read only)
+Targeting: `minXFollowers: 20`
+
+X campaigns use proof-of-read verification. Fee: ~0.0037 ETH.
+
+### Custom Targeting Tiers
+
+When the user explicitly requests a tier keyword, apply these targeting overrides:
+
+#### `broad` / `T1` -- Maximum reach
 
 ```json
 {
@@ -119,7 +140,7 @@ When the user says a tier keyword, apply these targeting defaults. User-specifie
 
 Cheapest fee (no targeting surcharges). Good for awareness campaigns.
 
-### `medium` / `T2` -- Quality filter
+#### `medium` / `T2` -- Quality filter
 
 ```json
 {
@@ -138,7 +159,7 @@ Cheapest fee (no targeting surcharges). Good for awareness campaigns.
 
 Moderate quality filter. Excludes bots and very new accounts.
 
-### `whale` / `T3` -- High-value audience
+#### `whale` / `T3` -- High-value audience
 
 ```json
 {
@@ -159,7 +180,25 @@ Premium audience. High fees but targets genuine, active users only.
 
 ---
 
-## 4. USD-to-Token Conversion
+## 4. Default Campaign Parameters
+
+When the user provides only a post URL (and optionally a budget), use these defaults:
+
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| Token | USDC (`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`, 6 decimals) | Most common airdrop token on Base |
+| Budget | 12 USDC | Reasonable starting point for engagement campaigns |
+| Reward type | `pool_split` | Split total among all participants |
+| Period | 1 day (`endsAt` = now + 24h) | Standard campaign duration |
+| Actions (Farcaster) | follow + like + recast | See platform defaults in Section 3 |
+| Actions (X) | all false (proof-of-read) | See platform defaults in Section 3 |
+
+**Always confirm defaults with the user before executing.** Present a summary:
+> "Using defaults: 12 USDC pool_split, ends in 24h, follow+like+recast. Confirm or adjust?"
+
+---
+
+## 5. USD-to-Token Conversion
 
 When the user specifies budget in USD (e.g. "$500 of DEGEN"):
 
@@ -170,11 +209,13 @@ When the user specifies budget in USD (e.g. "$500 of DEGEN"):
 
 **Price drift guard**: If more than 60 seconds pass between price check and `--execute`, re-fetch price. If the new price has drifted more than 5% from the original, re-confirm with the user before proceeding. Token prices can be volatile.
 
+**USDC**: USDC is approximately $1; still show live price when available from the API for accuracy.
+
 **Null price**: If `usdPrice` is `null`, the API has no price data. Ask the user for the token amount directly.
 
 ---
 
-## 5. X Campaign Special Handling
+## 6. X Campaign Special Handling
 
 When `platform` is `"x"`:
 
@@ -192,7 +233,7 @@ Example config: `examples/campaign.x.fixed.json`.
 
 ---
 
-## 6. Edge Cases
+## 7. Edge Cases
 
 | Scenario | Problem | Resolution |
 |----------|---------|------------|
@@ -204,13 +245,14 @@ Example config: `examples/campaign.x.fixed.json`.
 | Decimals mismatch | User says 6 but token has 18 | Always resolve decimals from the token API, not user input. |
 | `reward.totalAmount` is "0" or negative | Zod checks `min(1)` on string length, not value | Agent must ensure the numeric value is positive. Zod only checks the string is non-empty. |
 | `walletAddress` checksum mismatch | Zod regex is case-insensitive | Both `0xAbC...` and `0xabc...` pass validation, but the on-chain comparison in `create.ts` uses `.toLowerCase()`. |
-| `baseVerifyTargeting` has many providers | Fee = 0.0004 ETH per provider key | Warn user if provider count is high -- fee adds up. |
+| User gives no budget | No explicit budget specified | Default to 12 USDC pool_split. Confirm with user. |
+| User gives no period | No explicit end date specified | Default to 1 day (now + 24h). Confirm with user. |
 | User wants both `pool_split` and `maxParticipants` | Not supported | `pool_split` splits among all claimants; there is no participant cap. Use `fixed` if a cap is needed. |
 | Token doesn't support `approve` | `SafeERC20FailedOperation` on-chain | Some tokens (rebasing, fee-on-transfer) may not work. Warn the user to test with a small amount first. |
 
 ---
 
-## 7. Fee Impact Quick Reference
+## 8. Fee Impact Quick Reference
 
 See `src/fees.ts` for exact values. All fees are in ETH on Base.
 
@@ -229,10 +271,18 @@ See `src/fees.ts` for exact values. All fees are in ETH on Base.
 | Profile photo | 0.0002 | `targeting.requireProfilePhoto: true` |
 | Account age | 0.0002 | `targeting.minAccountAgeDays > 0` |
 | X followers | 0.0002 | `targeting.minXFollowers > 0` |
-| Base Verify | 0.0004/provider | per key in `baseVerifyTargeting` |
 | Fixed reward | 0.0008 | `reward.type === "fixed"` |
 | X campaign | 0.0025 | `platform === "x"` |
 | Quota surcharge | 0.0006-0.0018 | Based on eligible user count tier |
+
+### Common Default Fee Totals
+
+| Configuration | Approximate Fee | Components |
+|--------------|-----------------|------------|
+| Default Farcaster (follow+like+recast, minFollowers, accountAge) | ~0.0018 ETH | base + like + recast + minFollowers + accountAge |
+| Default X (proof-of-read, minXFollowers) | ~0.0037 ETH | base + X campaign + minXFollowers |
+
+Fees can be higher with advanced targeting. Quota surcharge (0.0006–0.0018 ETH) may apply based on eligible user count — determined server-side.
 
 ### Quota Surcharge Tiers
 
@@ -244,4 +294,4 @@ See `src/fees.ts` for exact values. All fees are in ETH on Base.
 | 1501-3000 | 0.0015 |
 | 3001+ | 0.0018 |
 
-Note: Quota surcharge is based on the estimated eligible user count at creation time. The CLI does not currently pass this value (it is set server-side or via the web app), so CLI-created campaigns may have `eligibleUserCount = null` (no surcharge applied locally). The on-chain `minBaseFee` is the final authority.
+**Important**: The backend enforces quota surcharge parity at `POST /api/campaigns`. If the ETH fee paid on-chain does not include the expected quota surcharge (within one-tier tolerance), the API returns **400 `fee_insufficient`**. The CLI does not currently calculate quota surcharge locally — this means campaigns with large eligible user counts may fail at API registration after on-chain funding. **Do NOT re-run `create --execute`** — funds are already on-chain. Preserve the recovery file, use `resume` when permitted, or contact DropCast support. See `error-playbook.md` for full recovery steps. A CLI update to calculate surcharge locally is planned.

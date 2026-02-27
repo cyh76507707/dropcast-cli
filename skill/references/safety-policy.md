@@ -20,7 +20,8 @@ Issue a warning and require explicit acknowledgement before proceeding when:
 | Condition | Warning |
 |-----------|---------|
 | Total budget > $500 USD equivalent | "High budget: this campaign will distribute ~$X of tokens. Confirm?" |
-| Total budget < $1 USD equivalent | "Very small budget: ~$X total. This may not be enough to attract participants. Confirm?" |
+| Total budget < $5 USD equivalent | "Very small budget: ~$X total. This may not be enough to attract participants. Confirm?" |
+| Budget rate < $10 USD per 24h | "Low budget warning: at ~$X/day, may not attract participants. Confirm?" (Calculation: `budgetUsd / (periodHours / 24)`. Soft recommendation, not hard rule.) |
 | Fee > airdrop value | "Bad economics: the platform fee ($X) exceeds the airdrop value ($Y). The campaign costs more in fees than it distributes." |
 | Token price unavailable | "Cannot determine USD value -- price data unavailable. Proceeding with raw token amounts only." |
 | Price drifted > 5% | "Token price changed by X% since your initial request. New total: $Y. Confirm?" |
@@ -84,7 +85,21 @@ Issue a warning and require explicit acknowledgement before proceeding when:
 
 ---
 
-## 6. Confirmation Checklist
+## 6. DropCast Platform Refund Policy
+
+| Scenario | Pool Split | Fixed |
+|----------|-----------|-------|
+| Full participation | All tokens distributed | All tokens distributed |
+| Partial participation | Remaining split among verified | Unused tokens refunded to host |
+| Zero participants | No refund (tokens held) | Full refund to host |
+| Host fee (ETH) | Non-refundable | Non-refundable |
+
+- Refunds (fixed mode only) are processed automatically after successful airdrop distribution.
+- Host fees are forwarded to the BuyBackBurner contract on-chain at funding time and cannot be reversed.
+
+---
+
+## 7. Confirmation Checklist
 
 Before any `--execute` run, verify all of these:
 
@@ -92,7 +107,7 @@ Before any `--execute` run, verify all of these:
 - [ ] User explicitly confirmed execution
 - [ ] `PRIVATE_KEY` is set in `.env` (do not display it)
 - [ ] `host.walletAddress` matches the `PRIVATE_KEY` wallet
-- [ ] ETH balance covers fee + 0.001 ETH gas buffer
+- [ ] ETH balance covers fee + gas (~0.005 ETH)
 - [ ] Token balance covers `totalAmount`
-- [ ] `endsAt` is in the future
+- [ ] `endsAt` is in the future and is NOT the template placeholder (`2099-12-31`)
 - [ ] No existing recovery file for the same campaign ID (would indicate a prior failed attempt -- use `resume` instead)

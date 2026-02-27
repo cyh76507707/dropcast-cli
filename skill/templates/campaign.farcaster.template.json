@@ -2,42 +2,39 @@
   "network": "base",
   "platform": "farcaster",
   "host": {
-    "fid": 12345,
+    "fid": 0,
     "walletAddress": "0x0000000000000000000000000000000000000000"
   },
   "post": {
     "url": "https://warpcast.com/username/0xCastHash"
   },
   "token": {
-    "address": "0x0000000000000000000000000000000000000000",
-    "symbol": "TOKEN",
-    "decimals": 18,
-    "logoUrl": null
+    "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "symbol": "USDC",
+    "decimals": 6
   },
   "reward": {
     "type": "pool_split",
-    "totalAmount": "1000"
+    "totalAmount": "12"
   },
   "actions": {
     "follow": true,
     "like": true,
-    "recast": false,
+    "recast": true,
     "quote": false,
-    "comment": false,
-    "prefilledQuoteMessage": null
+    "comment": false
   },
   "targeting": {
-    "minFollowers": 10,
+    "minFollowers": 20,
     "minNeynarScore": 0,
     "minQuotientScore": 0,
     "requirePro": false,
     "requireVerifiedOnly": false,
     "requireProfilePhoto": false,
     "minAccountAgeDays": 7,
-    "minXFollowers": 0,
-    "baseVerifyTargeting": null
+    "minXFollowers": 0
   },
   "schedule": {
-    "endsAt": "2026-03-15T00:00:00.000Z"
+    "endsAt": "2099-12-31T23:59:59.000Z"
   }
 }

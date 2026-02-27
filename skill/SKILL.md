@@ -13,26 +13,43 @@
 
 The CLI is installed locally in the project. Run via `npx dropcast-cli <command>` or the built binary.
 
-## 2. Workflow
+## 2. Quick Defaults
+
+```
+Default token:    USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913, 6 decimals)
+Default budget:   12 USDC pool_split
+Default period:   1 day (now + 24h)
+Farcaster:        follow + like + recast | minFollowers: 20, minAccountAgeDays: 7 | fee ~0.0018 ETH
+X:                proof-of-read only     | minXFollowers: 20                      | fee ~0.0037 ETH
+ETH needed:       ~0.005 ETH for fee + gas (covers both platforms with buffer)
+```
+
+## 3. Workflow
 
 Follow these steps in order. **Never skip the dry-run.**
 
 ### Step 1: Build the campaign config
 
-Parse the user's natural-language request and write a `campaign.json` file.
-Use `skill/templates/campaign.template.json` as the starting point.
+The user's **post URL** is the primary required input. Parse the user's request and write a `campaign.json` file.
 
-Fields the agent **must** replace from user input:
-- `host.fid` -- the user's Farcaster FID (integer)
+- **Farcaster**: Use `skill/templates/campaign.farcaster.template.json` as the starting point. Resolve the cast from the Warpcast URL and **suggest** `host.fid` from `cast.author.fid` — confirm with user before using.
+- **X**: Use `skill/templates/campaign.x.template.json` as the starting point. `host.fid` must be asked or known from context (X posts don't carry FID).
+- **Token**: Default to USDC if the user doesn't specify a token.
+
+Fields the agent **must** replace from user/context:
+- `host.fid` -- the user's Farcaster FID (integer). For Farcaster campaigns, suggest from cast author; for X, must ask.
 - `host.walletAddress` -- the user's wallet address (0x...)
 - `post.url` -- the Warpcast or X post URL
-- `token.address` -- the ERC-20 token contract address on Base
-- `token.symbol` -- the token ticker symbol
-- `token.decimals` -- the token's decimal precision (usually 18)
+- `schedule.endsAt` -- **must always be overwritten**. Compute as `now + 24h` by default, or from user input. The template uses `2099-12-31` as a placeholder — never submit this value.
+
+Fields the agent replaces **only if user specifies non-default values**:
+- `token.address`, `token.symbol`, `token.decimals` -- only if not using USDC
 - `reward.totalAmount` (pool_split) or `reward.amountPerUser` + `reward.maxParticipants` (fixed)
-- `schedule.endsAt` -- ISO 8601 datetime for campaign end
-- `actions.*` -- which engagement actions to require
-- `targeting.*` -- audience filters (adjust from defaults as needed)
+- `actions.*` -- engagement actions (template defaults are opinionated per platform)
+- `targeting.*` -- audience filters (template defaults are opinionated per platform)
+
+**Before writing the config**, present a defaults summary for user confirmation:
+> "Using defaults: 12 USDC pool_split, ends in 24h, follow+like+recast. Confirm or adjust?"
 
 For X campaigns, set `platform` to `"x"` and use a tweet URL for `post.url`.
 
@@ -83,7 +100,7 @@ dropcast-cli resume --recovery .dropcast-cli/<campaignId>.json --json
 
 This re-sends the API registration call without any on-chain transaction.
 
-## 3. Commands Reference
+## 4. Commands Reference
 
 Always use `--json` for structured, parseable output.
 
@@ -167,7 +184,7 @@ dropcast-cli list [--status active|ended|all] [--limit N] [--offset N] [--json]
 | `--offset` | No | `0` | Pagination offset |
 | `--json` | No | | Output as JSON |
 
-## 4. Config Schema
+## 5. Config Schema
 
 Campaign configs must pass the Zod schema defined in `src/config.ts`. Brief field reference:
 
@@ -185,7 +202,7 @@ Campaign configs must pass the Zod schema defined in `src/config.ts`. Brief fiel
 
 For full field-by-field documentation, see `skill/references/campaign-params.md`.
 
-## 5. Safety Rules
+## 6. Safety Rules
 
 1. **ALWAYS dry-run first.** Never call `create --execute` without presenting the dry-run summary to the user and receiving explicit confirmation.
 2. **ALWAYS use `--json`.** Parse structured output; never rely on human-readable text.
@@ -196,7 +213,7 @@ For full field-by-field documentation, see `skill/references/campaign-params.md`
 
 For the full safety policy, see `skill/references/safety-policy.md`.
 
-## 6. Error Handling
+## 7. Error Handling
 
 ### Schema validation errors
 Fix the config fields reported in the error output and re-run `validate --offline`.
@@ -226,12 +243,25 @@ The CLI handles 202 (pending finality) retries internally with exponential backo
 | 201 | Created | Success |
 | 202 | Pending finality | CLI retries automatically; if exhausted, use `resume` |
 | 400 | Validation failure | Fix the config or payload |
+| 400 (`fee_insufficient`) | Quota surcharge mismatch | On-chain fee underpaid vs server expectation. See error playbook. **Do NOT re-run `create --execute`.** |
 | 403 | Authorization failure | Wallet mismatch or unauthorized |
 | 409 | Conflict | Duplicate txHash or mismatched campaign data |
 
 For the full error playbook, see `skill/references/error-playbook.md`.
 
-## 7. Environment Variables
+## 8. DropCast Platform Refund Policy
+
+| Scenario | Pool Split | Fixed |
+|----------|-----------|-------|
+| Full participation | All tokens distributed | All tokens distributed |
+| Partial participation | Remaining split among verified | Unused tokens refunded to host |
+| Zero participants | No refund (tokens held) | Full refund to host |
+| Host fee (ETH) | Non-refundable | Non-refundable |
+
+- Refunds (fixed mode only) are processed automatically after successful airdrop distribution.
+- Host fees are forwarded to the BuyBackBurner contract on-chain at funding time and cannot be reversed.
+
+## 9. Environment Variables
 
 Set these in a `.env` file in the working directory or export them in the shell.
 
@@ -243,3 +273,5 @@ Set these in a `.env` file in the working directory or export them in the shell.
 | `DROPCAST_ROUTER_ADDRESS` | No | `0xd216801c9B658f9bEcB8125387a2A02c0d7Cc3d2` | Router contract address |
 
 `PRIVATE_KEY` is **not needed** for `validate`, `status`, `list`, or dry-run `create`. Only the `--execute` flag requires it.
+
+Users need **~0.005 ETH** on Base for fee + gas. The fee cannot be paid in USDC.

@@ -55,7 +55,13 @@ Insufficient ETH. Need ~0.0026 (fee + gas), have 0.0010.
 ```
 - **Cause**: Wallet does not have enough ETH for the platform fee plus a 0.001 ETH gas buffer.
 - **Fix**: Send more ETH to the wallet on Base. The required amount is `fee + 0.001 ETH`.
-- **Breakdown**: Fee varies by campaign options (see `campaign-params.md` Section 7). Gas buffer is fixed at 0.001 ETH.
+- **Breakdown**: Fee varies by campaign options (see `campaign-params.md` Section 8). Gas buffer is fixed at 0.001 ETH.
+
+### Insufficient ETH for fee (wallet has USDC but no ETH)
+- **Cause**: Wallet holds USDC (or other tokens) but has insufficient ETH. The platform fee must be paid in ETH — it cannot be paid in USDC.
+- **Fix**: Send ~0.005 ETH to the wallet on Base. This covers the fee + gas buffer for either platform.
+- Typical default fees are ~0.0018 to ~0.0037 ETH; can be higher with advanced targeting or quota surcharge.
+- USDC cannot be used for the platform fee. A future update may add automatic USDC→ETH swap.
 
 ### Insufficient token balance
 ```
@@ -128,6 +134,12 @@ These occur when the CLI calls `POST /api/campaigns` or other API endpoints.
 ### 400 -- Validation failure
 - **Cause**: The API rejected the payload. Field mismatch, invalid data, or schema version mismatch between CLI and server.
 - **Fix**: Check the error body for specific field failures. Ensure CLI version matches server expectations.
+
+### 400 -- `fee_insufficient` (quota surcharge mismatch)
+- **Cause**: The ETH fee paid on-chain does not include the expected quota surcharge. The backend recalculates the expected fee server-side (including quota surcharge based on eligible user count) and compares it against the on-chain decoded fee (with one-tier tolerance). If the paid fee is too low, registration is rejected.
+- **This is a post-funding error**: The on-chain transaction already succeeded, but API registration failed. A recovery file exists at `.dropcast-cli/<campaignId>.json`.
+- **Fix**: **Do NOT re-run `create --execute`** — funds are already on-chain and re-running would double-spend. Preserve the recovery file. Show the expected vs actual fee from the error response. Use `resume` if the backend team adjusts the fee tolerance, otherwise contact DropCast support.
+- **Prevention**: A CLI update to pre-calculate quota surcharge locally is planned. Until then, campaigns with large eligible audiences are at risk of this error.
 
 ### 403 -- Authorization failure
 - **Cause**: The wallet that funded the campaign does not match the `hostWalletAddress` in the payload, or the host FID is not authorized.
