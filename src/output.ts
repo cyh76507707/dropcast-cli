@@ -28,6 +28,7 @@ export interface DryRunData {
   ethBalance: string
   tokenBalance: string
   castPreview?: {
+    authorFid: number
     author: string
     text: string
   }

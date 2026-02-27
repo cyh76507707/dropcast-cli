@@ -34,13 +34,17 @@ Follow these steps in order. **Never skip the dry-run.**
 
 The user's **post URL** is the primary required input. Parse the user's request and write a `campaign.json` file.
 
-- **Farcaster**: Use `skill/templates/campaign.farcaster.template.json` as the starting point. Resolve the cast from the Farcaster URL and **suggest** `host.fid` from `cast.author.fid` — confirm with user before using.
+- **Farcaster**: Use `skill/templates/campaign.farcaster.template.json` as the starting point. To resolve `host.fid` automatically:
+  1. Write the config with a temporary `host.fid` (e.g. `1`) and run `validate --config campaign.json --json` (online).
+  2. Read `castPreview.authorFid` from the JSON output — this is the cast author's FID.
+  3. If the cast author is the host (common case), use this FID. Confirm with user before finalizing.
+  4. Update `host.fid` in the config with the confirmed value.
 - **X**: Use `skill/templates/campaign.x.template.json` as the starting point. `host.fid` must be asked or known from context (X posts don't carry FID).
 - **Token**: Default to USDC if the user doesn't specify a token.
 
 Fields the agent **must** replace from user/context:
-- `host.fid` -- the user's Farcaster FID (integer). For Farcaster campaigns, suggest from cast author; for X, must ask.
-- `host.walletAddress` -- the user's wallet address (0x...)
+- `host.fid` -- the user's Farcaster FID (integer). For Farcaster campaigns, auto-resolve from `castPreview.authorFid` (see above); for X, must ask.
+- `host.walletAddress` -- the user's wallet address (0x...). Derive from `PRIVATE_KEY` if available in `.env`.
 - `post.url` -- the Farcaster or X post URL
 - `schedule.endsAt` -- **must always be overwritten**. Compute as `now + 24h` by default, or from user input. The template uses `2099-12-31` as a placeholder — never submit this value.
 
@@ -121,7 +125,7 @@ dropcast-cli validate --config <path> [--offline] [--json]
 | `--json` | No | Output as JSON |
 
 **JSON output (offline):** `{ "valid": true, "config": { ... } }`
-**JSON output (online):** `{ "valid": true, "config": { ... }, "fee": { "total": 0.0014, "totalFormatted": "0.0014 ETH", "breakdown": { ... } }, "tokenPriceUsd": ..., "totalAmount": "...", "castPreview": { ... } }`
+**JSON output (online):** `{ "valid": true, "config": { ... }, "fee": { "total": 0.0014, "totalFormatted": "0.0014 ETH", "breakdown": { ... } }, "tokenPriceUsd": ..., "totalAmount": "...", "castPreview": { "authorFid": 12345, "author": "username", "text": "..." } }`
 
 ### create
 

@@ -152,7 +152,7 @@ export async function createCommand(options: {
     budgetUsd: tokenPriceUsd ? Number(totalAmount) * tokenPriceUsd : null,
     ethBalance,
     tokenBalance,
-    castPreview: castData ? { author: castData.authorUsername, text: castData.text } : undefined,
+    castPreview: castData ? { authorFid: castData.authorFid, author: castData.authorUsername, text: castData.text } : undefined,
   }
 
   if (!options.execute) {
@@ -166,7 +166,7 @@ export async function createCommand(options: {
         tokenPriceUsd,
         config,
         balances: { eth: ethBalance, token: tokenBalance },
-        castPreview: castData ? { author: castData.authorUsername, text: castData.text } : undefined,
+        castPreview: castData ? { authorFid: castData.authorFid, author: castData.authorUsername, text: castData.text } : undefined,
       })
     } else {
       printDryRunSummary(dryRunData)
