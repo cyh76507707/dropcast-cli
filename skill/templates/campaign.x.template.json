@@ -1,0 +1,40 @@
+{
+  "network": "base",
+  "platform": "x",
+  "host": {
+    "fid": 0,
+    "walletAddress": "0x0000000000000000000000000000000000000000"
+  },
+  "post": {
+    "url": "https://x.com/username/status/0000000000"
+  },
+  "token": {
+    "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "symbol": "USDC",
+    "decimals": 6
+  },
+  "reward": {
+    "type": "pool_split",
+    "totalAmount": "12"
+  },
+  "actions": {
+    "follow": false,
+    "like": false,
+    "recast": false,
+    "quote": false,
+    "comment": false
+  },
+  "targeting": {
+    "minFollowers": 0,
+    "minNeynarScore": 0,
+    "minQuotientScore": 0,
+    "requirePro": false,
+    "requireVerifiedOnly": false,
+    "requireProfilePhoto": false,
+    "minAccountAgeDays": 0,
+    "minXFollowers": 20
+  },
+  "schedule": {
+    "endsAt": "2099-12-31T23:59:59.000Z"
+  }
+}

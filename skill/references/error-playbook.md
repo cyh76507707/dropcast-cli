@@ -55,7 +55,13 @@ Insufficient ETH. Need ~0.0026 (fee + gas), have 0.0010.
 ```
 - **Cause**: Wallet does not have enough ETH for the platform fee plus a 0.001 ETH gas buffer.
 - **Fix**: Send more ETH to the wallet on Base. The required amount is `fee + 0.001 ETH`.
-- **Breakdown**: Fee varies by campaign options (see `campaign-params.md` Section 7). Gas buffer is fixed at 0.001 ETH.
+- **Breakdown**: Fee varies by campaign options (see `campaign-params.md` Section 8). Gas buffer is fixed at 0.001 ETH.
+
+### Insufficient ETH for fee (wallet has USDC but no ETH)
+- **Cause**: Wallet holds USDC (or other tokens) but has insufficient ETH. The platform fee must be paid in ETH — it cannot be paid in USDC.
+- **Fix**: Send ~0.005 ETH to the wallet on Base. This covers the fee + gas buffer for either platform.
+- Typical default fees are ~0.0018 to ~0.0037 ETH; can be higher with advanced targeting or quota surcharge.
+- USDC cannot be used for the platform fee. A future update may add automatic USDC→ETH swap.
 
 ### Insufficient token balance
 ```
