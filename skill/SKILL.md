@@ -243,6 +243,7 @@ The CLI handles 202 (pending finality) retries internally with exponential backo
 | 201 | Created | Success |
 | 202 | Pending finality | CLI retries automatically; if exhausted, use `resume` |
 | 400 | Validation failure | Fix the config or payload |
+| 400 (`fee_insufficient`) | Quota surcharge mismatch | On-chain fee underpaid vs server expectation. See error playbook. **Do NOT re-run `create --execute`.** |
 | 403 | Authorization failure | Wallet mismatch or unauthorized |
 | 409 | Conflict | Duplicate txHash or mismatched campaign data |
 

@@ -294,4 +294,4 @@ Fees can be higher with advanced targeting. Quota surcharge (0.0006–0.0018 ETH
 | 1501-3000 | 0.0015 |
 | 3001+ | 0.0018 |
 
-Note: Quota surcharge is based on the estimated eligible user count at creation time. The CLI does not currently pass this value (it is set server-side or via the web app), so CLI-created campaigns may have `eligibleUserCount = null` (no surcharge applied locally). The on-chain `minBaseFee` is the final authority.
+**Important**: The backend enforces quota surcharge parity at `POST /api/campaigns`. If the ETH fee paid on-chain does not include the expected quota surcharge (within one-tier tolerance), the API returns **400 `fee_insufficient`**. The CLI does not currently calculate quota surcharge locally — this means campaigns with high eligible user counts may fail at API registration after on-chain funding. If this happens, the agent should guide the user to retry with a higher fee. A CLI update to calculate surcharge locally is planned.
