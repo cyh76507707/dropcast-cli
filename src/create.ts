@@ -199,7 +199,7 @@ export async function createCommand(options: {
     const normalizedAddresses = verified_addresses.map(a => a.toLowerCase())
     if (!normalizedAddresses.includes(account.address.toLowerCase())) {
       const msg = `Wallet ${account.address} is not a verified address for FID ${config.host.fid}. ` +
-        `Connect it on Warpcast (Settings → Connected Addresses) and retry.`
+        `Connect it on Farcaster (Settings → Connected Addresses) and retry.`
       if (options.json) {
         jsonOutput({ error: msg, fid: config.host.fid, wallet: account.address, verified_addresses })
       } else {
