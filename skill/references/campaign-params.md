@@ -97,9 +97,11 @@ Discriminated union on `reward.type`:
 
 ---
 
-## 3. Platform Defaults
+## 3. Agent Recommended Presets
 
-When the user doesn't specify targeting, apply the platform default. User-specified values always override defaults.
+When the user doesn't specify targeting, apply these agent-recommended presets. User-specified values always override presets.
+
+> **Note**: These are opinionated defaults for CLI agent workflows, not the `dropcast.xyz` web app defaults. The web app uses all-zero/false targeting and no default token. These presets provide sensible starting points for natural-language-to-campaign flows.
 
 ### `default (Farcaster)`
 

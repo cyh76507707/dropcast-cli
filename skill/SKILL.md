@@ -250,9 +250,15 @@ For the full error playbook, see `skill/references/error-playbook.md`.
 
 ## 8. DropCast Platform Refund Policy
 
-- **Pool Split**: Full token refund if no one participates.
-- **Fixed**: Unused slots refunded automatically.
-- **Host fees (ETH)**: Non-refundable. Fees are used for $DR buyback.
+| Scenario | Pool Split | Fixed |
+|----------|-----------|-------|
+| Full participation | All tokens distributed | All tokens distributed |
+| Partial participation | Remaining split among verified | Unused tokens refunded to host |
+| Zero participants | No refund (tokens held) | Full refund to host |
+| Host fee (ETH) | Non-refundable | Non-refundable |
+
+- Refunds (fixed mode only) are processed automatically after successful airdrop distribution.
+- Host fees are forwarded to the BuyBackBurner contract on-chain at funding time and cannot be reversed.
 
 ## 9. Environment Variables
 
