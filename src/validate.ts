@@ -70,6 +70,7 @@ export async function validateCommand(options: {
     try {
       const cast = await resolveCast(config.post.url)
       castPreview = {
+        authorFid: cast.author.fid,
         author: cast.author.username,
         text: cast.text,
       }
