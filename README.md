@@ -169,6 +169,8 @@ With `--execute`, the command:
 5. Registers the campaign via `POST /api/campaigns` (with automatic 202 retry)
 6. On success, deletes the recovery file and prints campaign details
 
+All API requests include the `X-Dropcast-Client: cli` header, which the backend uses to tag campaigns as `created_via='cli'`. This enables deterministic filtering of CLI-originated campaigns (e.g. the `/ai` page). Historical campaigns created before this tagging was deployed may have `created_via = NULL`.
+
 ### `resume`
 
 Resume a funded-but-unregistered campaign from its recovery file. Sends no on-chain transactions.

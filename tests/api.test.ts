@@ -87,6 +87,36 @@ const STUB_PAYLOAD: CreateCampaignPayload = {
 
 // ── Tests ──
 
+describe('X-Dropcast-Client header', () => {
+  beforeEach(() => {
+    vi.stubEnv('DROPCAST_API_BASE_URL', 'https://test.dropcast.xyz')
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('sends X-Dropcast-Client: cli on every request', async () => {
+    mockFetch({ status: 200, json: { cast: { hash: '0x1', author: { fid: 1, username: 'a', display_name: 'A', pfp_url: '' }, text: '', embeds: [] } } })
+
+    await resolveCast('https://warpcast.com/a/0x1')
+
+    const callInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
+    expect((callInit.headers as Record<string, string>)['X-Dropcast-Client']).toBe('cli')
+  })
+
+  it('sends X-Dropcast-Client: cli on POST /api/campaigns', async () => {
+    mockFetch({ status: 201, json: { success: true, campaign: { id: STUB_PAYLOAD.id, campaign_number: 1, status: 'active' } } })
+
+    await createCampaign(STUB_PAYLOAD)
+
+    const callInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
+    expect((callInit.headers as Record<string, string>)['X-Dropcast-Client']).toBe('cli')
+  })
+})
+
 describe('resolveCast', () => {
   beforeEach(() => {
     vi.stubEnv('DROPCAST_API_BASE_URL', 'https://test.dropcast.xyz')
