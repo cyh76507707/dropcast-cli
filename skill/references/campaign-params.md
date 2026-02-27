@@ -31,7 +31,7 @@ When building a campaign config from a user request, resolve each field in this 
 | Field | Type | Required | Default | Resolution notes |
 |-------|------|----------|---------|------------------|
 | `network` | `"base"` (literal) | Yes | -- | Always `"base"`. DropCast only supports Base Mainnet (chain 8453). |
-| `platform` | `"farcaster" \| "x"` | Yes | -- | Infer from post URL domain. Warpcast = farcaster. x.com/twitter.com = x. |
+| `platform` | `"farcaster" \| "x"` | Yes | -- | Infer from post URL domain. farcaster.xyz = farcaster. x.com/twitter.com = x. |
 
 ### `host`
 
@@ -44,7 +44,7 @@ When building a campaign config from a user request, resolve each field in this 
 
 | Field | Type | Required | Default | Resolution notes |
 |-------|------|----------|---------|------------------|
-| `post.url` | string, valid URL | Yes | -- | Farcaster: Warpcast URL (e.g. `https://warpcast.com/user/0xhash`). X: tweet URL (e.g. `https://x.com/user/status/123`). |
+| `post.url` | string, valid URL | Yes | -- | Farcaster: `https://farcaster.xyz/user/0xhash`. X: `https://x.com/user/status/123`. |
 
 ### `token`
 

@@ -74,7 +74,7 @@ function makeRecoveryData(overrides: Record<string, unknown> = {}) {
         walletAddress: '0x0000000000000000000000000000000000000000',
       },
       post: {
-        url: 'https://warpcast.com/alice/0xabc123',
+        url: 'https://farcaster.xyz/alice/0xabc123',
       },
       token: {
         address: '0xe8f5314e8DBE7EA9978190eC243f7b4258eaD7FB',

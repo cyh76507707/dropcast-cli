@@ -34,14 +34,14 @@ Follow these steps in order. **Never skip the dry-run.**
 
 The user's **post URL** is the primary required input. Parse the user's request and write a `campaign.json` file.
 
-- **Farcaster**: Use `skill/templates/campaign.farcaster.template.json` as the starting point. Resolve the cast from the Warpcast URL and **suggest** `host.fid` from `cast.author.fid` — confirm with user before using.
+- **Farcaster**: Use `skill/templates/campaign.farcaster.template.json` as the starting point. Resolve the cast from the Farcaster URL and **suggest** `host.fid` from `cast.author.fid` — confirm with user before using.
 - **X**: Use `skill/templates/campaign.x.template.json` as the starting point. `host.fid` must be asked or known from context (X posts don't carry FID).
 - **Token**: Default to USDC if the user doesn't specify a token.
 
 Fields the agent **must** replace from user/context:
 - `host.fid` -- the user's Farcaster FID (integer). For Farcaster campaigns, suggest from cast author; for X, must ask.
 - `host.walletAddress` -- the user's wallet address (0x...)
-- `post.url` -- the Warpcast or X post URL
+- `post.url` -- the Farcaster or X post URL
 - `schedule.endsAt` -- **must always be overwritten**. Compute as `now + 24h` by default, or from user input. The template uses `2099-12-31` as a placeholder — never submit this value.
 
 Fields the agent replaces **only if user specifies non-default values**:
@@ -195,7 +195,7 @@ Campaign configs must pass the Zod schema defined in `src/config.ts`. Brief fiel
 | `network` | `"base"` (literal) | Only Base Mainnet is supported |
 | `platform` | `"farcaster"` or `"x"` | Determines post resolution and action behavior |
 | `host` | `fid`, `walletAddress` | Must match `PRIVATE_KEY` wallet for `--execute` |
-| `post` | `url` | Warpcast URL (Farcaster) or tweet URL (X) |
+| `post` | `url` | Farcaster post URL or tweet URL (X) |
 | `token` | `address`, `symbol`, `decimals`, `logoUrl?` | ERC-20 on Base |
 | `reward` | `type` + type-specific fields | `pool_split`: `totalAmount`; `fixed`: `amountPerUser` + `maxParticipants` |
 | `actions` | `follow`, `like`, `recast`, `quote`, `comment` | Booleans. X campaigns ignore these (proof-of-read only) |

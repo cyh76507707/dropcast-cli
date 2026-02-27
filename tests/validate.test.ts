@@ -20,7 +20,7 @@ function makeConfig(overrides: {
       fid: 1,
       walletAddress: '0x0000000000000000000000000000000000000001',
     },
-    post: { url: 'https://warpcast.com/alice/0xabc123' },
+    post: { url: 'https://farcaster.xyz/alice/0xabc123' },
     token: {
       address: '0x0000000000000000000000000000000000000002',
       symbol: 'TKN',

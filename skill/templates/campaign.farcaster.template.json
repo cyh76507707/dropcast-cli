@@ -6,7 +6,7 @@
     "walletAddress": "0x0000000000000000000000000000000000000000"
   },
   "post": {
-    "url": "https://warpcast.com/username/0xCastHash"
+    "url": "https://farcaster.xyz/username/0xCastHash"
   },
   "token": {
     "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",

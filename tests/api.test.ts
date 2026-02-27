@@ -101,7 +101,7 @@ describe('X-Dropcast-Client header', () => {
   it('sends X-Dropcast-Client: cli on every request', async () => {
     mockFetch({ status: 200, json: { cast: { hash: '0x1', author: { fid: 1, username: 'a', display_name: 'A', pfp_url: '' }, text: '', embeds: [] } } })
 
-    await resolveCast('https://warpcast.com/a/0x1')
+    await resolveCast('https://farcaster.xyz/a/0x1')
 
     const callInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
     expect((callInit.headers as Record<string, string>)['X-Dropcast-Client']).toBe('cli')
@@ -137,7 +137,7 @@ describe('resolveCast', () => {
     }
     mockFetch({ status: 200, json: { cast: castData } })
 
-    const result = await resolveCast('https://warpcast.com/alice/0xabc')
+    const result = await resolveCast('https://farcaster.xyz/alice/0xabc')
 
     expect(result).toEqual(castData)
     expect(fetch).toHaveBeenCalledOnce()
@@ -153,8 +153,8 @@ describe('resolveCast', () => {
       statusText: 'Not Found',
     })
 
-    await expect(resolveCast('https://warpcast.com/alice/0xbad')).rejects.toThrow(ApiError)
-    await expect(resolveCast('https://warpcast.com/alice/0xbad')).rejects.toThrow(/Failed to resolve cast/)
+    await expect(resolveCast('https://farcaster.xyz/alice/0xbad')).rejects.toThrow(ApiError)
+    await expect(resolveCast('https://farcaster.xyz/alice/0xbad')).rejects.toThrow(/Failed to resolve cast/)
   })
 })
 

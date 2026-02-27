@@ -66,7 +66,7 @@ Campaign configs are JSON files validated against a Zod schema. See `examples/` 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `url` | string (URL) | Yes | Warpcast URL (Farcaster) or tweet URL (X) |
+| `url` | string (URL) | Yes | Farcaster post URL or tweet URL (X) |
 
 ### `token`
 
