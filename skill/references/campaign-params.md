@@ -5,6 +5,12 @@
 
 ---
 
+## 0. Source Tagging
+
+All CLI API requests include the `X-Dropcast-Client: cli` header. The backend stores this as `campaigns.created_via = 'cli'`, which the `/ai` page uses for filtering. Historical campaigns may have `created_via = NULL` (pre-tagging); `NULL` is also the value for non-CLI paths. No agent action is required — the header is sent automatically by the CLI's HTTP client.
+
+---
+
 ## 1. Resolution Priority
 
 When building a campaign config from a user request, resolve each field in this order:

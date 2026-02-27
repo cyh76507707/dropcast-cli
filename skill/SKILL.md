@@ -13,6 +13,8 @@
 
 The CLI is installed locally in the project. Run via `npx dropcast-cli <command>` or the built binary.
 
+All API requests include the `X-Dropcast-Client: cli` header. The backend persists this as `campaigns.created_via = 'cli'`, enabling the `/ai` page to deterministically filter CLI-originated campaigns. Historical campaigns (created before source tagging was deployed) may have `created_via = NULL`; `NULL` is also expected for non-CLI creation paths (e.g. the web app).
+
 ## 2. Quick Defaults
 
 ```
@@ -87,7 +89,7 @@ dropcast-cli create --config campaign.json --execute --yes --json
 1. Approve the ERC-20 token spend (if allowance insufficient)
 2. Call `fundCampaign()` on the Router contract (sends tokens + ETH fee)
 3. Write a recovery file to `.dropcast-cli/<campaignId>.json`
-4. Register the campaign via `POST /api/campaigns` (with internal 202 retry)
+4. Register the campaign via `POST /api/campaigns` (with `X-Dropcast-Client: cli` header and internal 202 retry)
 5. On success, delete the recovery file and return the campaign details
 
 ### Step 6: Error recovery
