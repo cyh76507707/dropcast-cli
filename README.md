@@ -120,7 +120,6 @@ Discriminated union on `type`:
 | `requireProfilePhoto` | boolean | `false` | Require a profile photo |
 | `minAccountAgeDays` | integer | `0` | Minimum account age in days |
 | `minXFollowers` | integer | `0` | Minimum X (Twitter) follower count (X campaigns) |
-| `baseVerifyTargeting` | object \| null | `null` | Base Verify provider targeting config |
 
 ### `schedule`
 
