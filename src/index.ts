@@ -24,7 +24,7 @@ const program = new Command()
 program
   .name('dropcast-cli')
   .description('CLI for creating DropCast campaigns via API')
-  .version('0.1.3')
+  .version('0.1.4')
 
 // ── validate ──
 
