@@ -133,7 +133,7 @@ dropcast-cli validate --config <path> [--offline] [--json]
 Create a campaign. Dry-run by default; add `--execute` for live execution.
 
 ```
-dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [--json]
+dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [--allow-fee-uncertain] [--json]
 ```
 
 | Flag | Required | Description |
@@ -145,7 +145,7 @@ dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [
 | `--allow-fee-uncertain` | No | Proceed without quota surcharge when eligible count is unavailable |
 | `--json` | No | Output as JSON |
 
-**Dry-run JSON output:** `{ "mode": "dry-run", "campaignId": "...", "fee": { ... }, "totalAmount": "...", "config": { ... }, "balances": { ... } }`
+**Dry-run JSON output:** `{ "mode": "dry-run", "campaignId": "...", "fee": { "total": 0.0022, "formatted": "0.0022 ETH", "breakdown": { ... } }, "totalAmount": "...", "config": { ... }, "balances": { ... } }`
 **Execute JSON output (success):** `{ "success": true, "campaignNumber": 42, "campaignId": "...", "fundingTxHash": "0x...", "status": "active", "viewUrl": "https://dropcast.xyz/campaign/42" }`
 **Execute JSON output (error):** `{ "error": "...", "status": 403, "recoveryFile": ".dropcast-cli/<id>.json", "fundingTxHash": "0x..." }`
 

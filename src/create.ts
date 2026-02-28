@@ -393,6 +393,7 @@ export async function createCommand(options: {
         fundingTxHash: txHash,
         status: data.campaign.status,
         viewUrl: `https://dropcast.xyz/campaign/${data.campaign.campaign_number}`,
+        ...(feeUncertain && { feeUncertain: true, feeUncertainReason }),
       })
     } else {
       console.log('')

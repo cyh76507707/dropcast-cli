@@ -148,7 +148,7 @@ dropcast-cli validate --config <path> [--offline] [--json]
 Create a campaign. Dry-run by default; add `--execute` for live execution.
 
 ```bash
-dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [--json]
+dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [--allow-fee-uncertain] [--json]
 ```
 
 | Flag | Required | Description |

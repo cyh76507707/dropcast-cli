@@ -387,6 +387,13 @@ describe('createCommand', () => {
     expect(mockFundCampaign).toHaveBeenCalledOnce()
     expect(mockRegisterCampaignWithRetry).toHaveBeenCalledOnce()
 
+    // Success JSON should include feeUncertain metadata (T2-2 P2 #1)
+    const lastCall = consoleSpy.mock.calls[consoleSpy.mock.calls.length - 1]
+    const parsed = JSON.parse(lastCall[0] as string)
+    expect(parsed.success).toBe(true)
+    expect(parsed.feeUncertain).toBe(true)
+    expect(parsed.feeUncertainReason).toBeDefined()
+
     consoleSpy.mockRestore()
     vi.mocked(console.warn).mockRestore?.()
   })
