@@ -9,6 +9,7 @@ import {
   resolveCast,
   createCampaign,
   registerCampaignWithRetry,
+  getTargetingCount,
   ApiError,
 } from '../src/api.js'
 import type { CreateCampaignPayload } from '../src/config.js'
@@ -323,5 +324,86 @@ describe('registerCampaignWithRetry', () => {
     expect(caughtError!.message).toMatch(/pending finality after max retries/)
     // 7 total attempts: initial + 6 retries
     expect(fetch).toHaveBeenCalledTimes(7)
+  })
+})
+
+describe('getTargetingCount', () => {
+  const TARGETING_PARAMS = {
+    platform: 'farcaster' as const,
+    minFollowers: 20,
+    minNeynarScore: 0.5,
+    minQuotientScore: 0,
+    requirePro: false,
+    requireVerifiedOnly: true,
+    requireProfilePhoto: false,
+    minAccountAgeDays: 7,
+    minXFollowers: 0,
+  }
+
+  beforeEach(() => {
+    vi.stubEnv('DROPCAST_API_BASE_URL', 'https://test.dropcast.xyz')
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('returns { count, cached } on 200', async () => {
+    mockFetch({ status: 200, json: { count: 250, cached: true, criteria: {} } })
+
+    const result = await getTargetingCount(TARGETING_PARAMS)
+
+    expect(result).toEqual({ count: 250, cached: true })
+  })
+
+  it('returns null on non-200', async () => {
+    mockFetch({ status: 500, ok: false, json: { error: 'Server error' } })
+
+    const result = await getTargetingCount(TARGETING_PARAMS)
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null on malformed response (missing count)', async () => {
+    mockFetch({ status: 200, json: { cached: true } })
+
+    const result = await getTargetingCount(TARGETING_PARAMS)
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null on malformed response (non-integer count)', async () => {
+    mockFetch({ status: 200, json: { count: 3.14, cached: false } })
+
+    const result = await getTargetingCount(TARGETING_PARAMS)
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null on malformed response (negative count)', async () => {
+    mockFetch({ status: 200, json: { count: -1, cached: false } })
+
+    const result = await getTargetingCount(TARGETING_PARAMS)
+
+    expect(result).toBeNull()
+  })
+
+  it('sends all query params explicitly', async () => {
+    mockFetch({ status: 200, json: { count: 100, cached: false } })
+
+    await getTargetingCount(TARGETING_PARAMS)
+
+    const callUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+    expect(callUrl).toContain('platform=farcaster')
+    expect(callUrl).toContain('minFollowers=20')
+    expect(callUrl).toContain('minNeynarScore=0.5')
+    expect(callUrl).toContain('minQuotientScore=0')
+    expect(callUrl).toContain('requirePro=false')
+    expect(callUrl).toContain('requireVerifiedOnly=true')
+    expect(callUrl).toContain('requireProfilePhoto=false')
+    expect(callUrl).toContain('minAccountAgeDays=7')
+    expect(callUrl).toContain('minXFollowers=0')
   })
 })

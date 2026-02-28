@@ -24,7 +24,7 @@ const program = new Command()
 program
   .name('dropcast-cli')
   .description('CLI for creating DropCast campaigns via API')
-  .version('0.1.2')
+  .version('0.1.3')
 
 // ── validate ──
 
@@ -51,6 +51,7 @@ program
   .option('--execute', 'Execute for real (fund on-chain + register)')
   .option('--campaign-id <uuid>', 'Reuse UUID for idempotent retries')
   .option('-y, --yes', 'Skip interactive confirmation')
+  .option('--allow-fee-uncertain', 'Proceed without quota surcharge when eligible count is unavailable')
   .option('--json', 'Output as JSON')
   .action(async (opts) => {
     try {
@@ -60,6 +61,7 @@ program
         campaignId: opts.campaignId,
         yes: opts.yes,
         json: opts.json,
+        allowFeeUncertain: opts.allowFeeUncertain,
       })
     } catch (err) {
       handleError(err, opts.json)

@@ -298,6 +298,71 @@ export async function listCampaigns(params: {
   return (await res.json()) as CampaignListResponse
 }
 
+// ============================================
+// Targeting Count
+// ============================================
+
+/**
+ * Fetch eligible user count from GET /api/targeting/count.
+ * Used to calculate quota surcharge before on-chain funding.
+ *
+ * Always sends all targeting params explicitly (including 0/false)
+ * for a deterministic query contract.
+ *
+ * Returns { count, cached } on success, null on any error.
+ */
+export async function getTargetingCount(params: {
+  platform: 'farcaster' | 'x'
+  minFollowers: number
+  minNeynarScore: number
+  minQuotientScore: number
+  requirePro: boolean
+  requireVerifiedOnly: boolean
+  requireProfilePhoto: boolean
+  minAccountAgeDays: number
+  minXFollowers: number
+}): Promise<{ count: number; cached: boolean } | null> {
+  try {
+    const query = new URLSearchParams({
+      platform: params.platform,
+      minFollowers: String(params.minFollowers),
+      minNeynarScore: String(params.minNeynarScore),
+      minQuotientScore: String(params.minQuotientScore),
+      requirePro: String(params.requirePro),
+      requireVerifiedOnly: String(params.requireVerifiedOnly),
+      requireProfilePhoto: String(params.requireProfilePhoto),
+      minAccountAgeDays: String(params.minAccountAgeDays),
+      minXFollowers: String(params.minXFollowers),
+    })
+
+    const res = await apiFetch(`/api/targeting/count?${query.toString()}`)
+
+    if (!res.ok) {
+      return null
+    }
+
+    const data = await res.json()
+
+    // Validate response shape: count must be a finite integer >= 0
+    if (
+      typeof data.count !== 'number' ||
+      !Number.isFinite(data.count) ||
+      !Number.isInteger(data.count) ||
+      data.count < 0
+    ) {
+      return null
+    }
+
+    return { count: data.count, cached: Boolean(data.cached) }
+  } catch {
+    return null
+  }
+}
+
+// ============================================
+// Verified Addresses
+// ============================================
+
 /**
  * Get verified addresses for a FID. Triggers server-side refresh if stale.
  * Used for pre-flight wallet-FID check before on-chain funding.

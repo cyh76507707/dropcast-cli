@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildFeeOptions } from '../src/validate.js'
+import { calculateFee } from '../src/fees.js'
 import type { CampaignConfig } from '../src/config.js'
 
 // ============================================
@@ -188,6 +189,26 @@ describe('buildFeeOptions', () => {
       const opts = buildFeeOptions(config)
 
       expect(opts.baseVerifyProviderCount).toBe(0)
+    })
+  })
+
+  describe('eligibleUserCount mutation', () => {
+    it('buildFeeOptions result can have eligibleUserCount set via mutation', () => {
+      const config = makeConfig()
+      const opts = buildFeeOptions(config)
+
+      // Initially no eligibleUserCount
+      expect(opts.eligibleUserCount).toBeUndefined()
+
+      const feeWithout = calculateFee(opts)
+
+      // Mutate to add eligible user count
+      opts.eligibleUserCount = 200
+
+      const feeWith = calculateFee(opts)
+
+      // Fee should increase by the surcharge for tier 101-500 (0.0009 ETH)
+      expect(feeWith - feeWithout).toBeCloseTo(0.0009, 6)
     })
   })
 })

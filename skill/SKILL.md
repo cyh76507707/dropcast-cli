@@ -81,7 +81,7 @@ This resolves the cast/post, fetches the token price, checks wallet balances, an
 dropcast-cli create --config campaign.json --json
 ```
 
-Without `--execute`, `create` runs in **dry-run mode**: it resolves on-chain data, calculates fees, checks balances, and returns a full preview. No transactions are sent. Present the dry-run summary to the user.
+Without `--execute`, `create` runs in **dry-run mode**: it resolves on-chain data, fetches eligible user count for quota surcharge, calculates fees (including surcharge), checks balances, and returns a full preview. No transactions are sent. Present the dry-run summary to the user.
 
 ### Step 5: Execute (only after explicit user confirmation)
 
@@ -90,11 +90,12 @@ dropcast-cli create --config campaign.json --execute --yes --json
 ```
 
 **Requires** the `PRIVATE_KEY` environment variable. The `--yes` flag skips the interactive prompt (safe when the agent controls invocation). The CLI will:
-1. Approve the ERC-20 token spend (if allowance insufficient)
-2. Call `fundCampaign()` on the Router contract (sends tokens + ETH fee)
-3. Write a recovery file to `.dropcast-cli/<campaignId>.json`
-4. Register the campaign via `POST /api/campaigns` (with `X-Dropcast-Client: cli` header and internal 202 retry)
-5. On success, delete the recovery file and return the campaign details
+1. Fetch eligible user count via `GET /api/targeting/count` and calculate the fee including quota surcharge (aborts if count unavailable unless `--allow-fee-uncertain` is passed)
+2. Approve the ERC-20 token spend (if allowance insufficient)
+3. Call `fundCampaign()` on the Router contract (sends tokens + ETH fee including surcharge)
+4. Write a recovery file to `.dropcast-cli/<campaignId>.json`
+5. Register the campaign via `POST /api/campaigns` (with `X-Dropcast-Client: cli` header and internal 202 retry)
+6. On success, delete the recovery file and return the campaign details
 
 ### Step 6: Error recovery
 
@@ -141,6 +142,7 @@ dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [
 | `--execute` | No | Send real transactions (requires PRIVATE_KEY) |
 | `--campaign-id` | No | Reuse a UUID for idempotent retries |
 | `--yes, -y` | No | Skip interactive confirmation prompt |
+| `--allow-fee-uncertain` | No | Proceed without quota surcharge when eligible count is unavailable |
 | `--json` | No | Output as JSON |
 
 **Dry-run JSON output:** `{ "mode": "dry-run", "campaignId": "...", "fee": { ... }, "totalAmount": "...", "config": { ... }, "balances": { ... } }`

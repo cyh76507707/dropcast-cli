@@ -79,6 +79,14 @@ export function printDryRunSummary(data: DryRunData): void {
   }
 
   console.log(`Fee:            ${formatFee(breakdown.total)}`)
+
+  // Eligible user count / quota surcharge
+  if (breakdown.quotaSurchargeTier) {
+    console.log(`Eligible users: ~${feeOptions.eligibleUserCount} (tier ${breakdown.quotaSurchargeTier}, surcharge: ${formatFee(breakdown.quotaSurcharge)})`)
+  } else {
+    console.log(`Eligible users: (unknown — fee may exclude quota surcharge)`)
+  }
+
   console.log('')
 
   // Actions
