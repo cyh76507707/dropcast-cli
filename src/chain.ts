@@ -172,6 +172,26 @@ export async function fundCampaign(params: {
   let approvalTxHash: `0x${string}` | undefined
 
   if (currentAllowance < params.tokenAmount) {
+    // Reset allowance to 0 first if non-zero — required by USDC and other tokens
+    // that revert on approve(spender, newAmount) when current allowance is non-zero.
+    if (currentAllowance > 0n) {
+      const resetData = encodeFunctionData({
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [routerAddress, 0n],
+      })
+
+      const resetHash = await walletClient.sendTransaction({
+        account,
+        to: params.tokenAddress,
+        data: resetData,
+        value: 0n,
+        chain: baseChain,
+      })
+
+      await publicClient.waitForTransactionReceipt({ hash: resetHash })
+    }
+
     const approveData = encodeFunctionData({
       abi: ERC20_ABI,
       functionName: 'approve',
