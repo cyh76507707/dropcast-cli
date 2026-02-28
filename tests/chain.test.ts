@@ -100,14 +100,13 @@ describe('fundCampaign', () => {
     expect(mockSimulateContract).toHaveBeenCalledOnce()
   })
 
-  it('approves first when allowance is insufficient', async () => {
-    // Allowance < tokenAmount
-    mockReadContract.mockResolvedValueOnce(100n) // allowance (too low)
-    // Approve tx
-    mockWriteContract.mockResolvedValueOnce('0xapprove_hash')
+  it('approves first when allowance is insufficient (with non-zero reset)', async () => {
+    // Allowance < tokenAmount and non-zero — triggers reset-to-0 then approve
+    mockReadContract.mockResolvedValueOnce(100n) // allowance (too low, non-zero)
     mockSendTransaction
-      .mockResolvedValueOnce('0xapprove_hash') // approve tx
-      .mockResolvedValueOnce('0xfund_hash') // fund tx
+      .mockResolvedValueOnce('0xreset_hash')   // approve(router, 0)
+      .mockResolvedValueOnce('0xapprove_hash') // approve(router, amount)
+      .mockResolvedValueOnce('0xfund_hash')    // fund tx
 
     const result = await fundCampaign({
       tokenAddress: '0xe8f5314e8DBE7EA9978190eC243f7b4258eaD7FB' as `0x${string}`,
@@ -116,10 +115,52 @@ describe('fundCampaign', () => {
       feeAmountWei: 1000000000000000n,
     })
 
-    expect(result.approvalTxHash).toBeDefined()
-    expect(result.txHash).toBeDefined()
-    // waitForTransactionReceipt should have been called (for approval at least)
+    expect(result.approvalTxHash).toBe('0xapprove_hash')
+    expect(result.txHash).toBe('0xfund_hash')
+    // 3 sends: reset, approve, fund
+    expect(mockSendTransaction).toHaveBeenCalledTimes(3)
     expect(mockWaitForTransactionReceipt).toHaveBeenCalled()
+  })
+
+  it('resets allowance to 0 before approving when stale non-zero allowance exists', async () => {
+    // Stale allowance: non-zero but less than required (e.g. leftover from previous campaign)
+    mockReadContract.mockResolvedValueOnce(8000000n) // stale allowance (8 USDC)
+    mockSendTransaction
+      .mockResolvedValueOnce('0xreset_hash')   // approve(router, 0)
+      .mockResolvedValueOnce('0xapprove_hash') // approve(router, amount)
+      .mockResolvedValueOnce('0xfund_hash')    // fundCampaign tx
+
+    const result = await fundCampaign({
+      tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`,
+      tokenAmount: 12000000n, // 12 USDC — more than stale 8 USDC
+      campaignId: '550e8400-e29b-41d4-a716-446655440000',
+      feeAmountWei: 1000000000000000n,
+    })
+
+    // 3 sendTransaction calls: reset-to-0, approve, fund
+    expect(mockSendTransaction).toHaveBeenCalledTimes(3)
+    expect(result.approvalTxHash).toBe('0xapprove_hash')
+    expect(result.txHash).toBe('0xfund_hash')
+  })
+
+  it('skips reset when allowance is already 0', async () => {
+    // Allowance is 0 — no reset needed, just approve
+    mockReadContract.mockResolvedValueOnce(0n)
+    mockSendTransaction
+      .mockResolvedValueOnce('0xapprove_hash') // approve(router, amount)
+      .mockResolvedValueOnce('0xfund_hash')    // fundCampaign tx
+
+    const result = await fundCampaign({
+      tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`,
+      tokenAmount: 12000000n,
+      campaignId: '550e8400-e29b-41d4-a716-446655440000',
+      feeAmountWei: 1000000000000000n,
+    })
+
+    // 2 sendTransaction calls: approve, fund (no reset)
+    expect(mockSendTransaction).toHaveBeenCalledTimes(2)
+    expect(result.approvalTxHash).toBe('0xapprove_hash')
+    expect(result.txHash).toBe('0xfund_hash')
   })
 
   it('propagates simulation failure without sending real tx', async () => {
