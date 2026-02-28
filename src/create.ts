@@ -12,8 +12,8 @@
 import { randomUUID } from 'crypto'
 import { parseUnits, formatUnits, formatEther, parseEther } from 'viem'
 import { loadConfig, buildCreatePayload } from './config.js'
-import { resolveCast, getTokenPrice, registerCampaignWithRetry, getVerifiedAddresses, ApiError } from './api.js'
-import { calculateFee, feeToWei, formatFee } from './fees.js'
+import { resolveCast, getTokenPrice, registerCampaignWithRetry, getVerifiedAddresses, getTargetingCount, ApiError } from './api.js'
+import { calculateFee, feeToWei, formatFee, getFeeBreakdown } from './fees.js'
 import { buildFeeOptions } from './validate.js'
 import { getBalances, getRouterStats, fundCampaign, validateChainId, getWalletClient } from './chain.js'
 import { jsonOutput, printDryRunSummary, type DryRunData } from './output.js'
@@ -56,6 +56,7 @@ export async function createCommand(options: {
   campaignId?: string
   yes?: boolean
   json?: boolean
+  allowFeeUncertain?: boolean
 }): Promise<void> {
   // 1. Load config
   const config = loadConfig(options.config)
@@ -69,11 +70,11 @@ export async function createCommand(options: {
   }
   const campaignId = options.campaignId || randomUUID()
 
-  // 2. Build fee options
+  // 2. Build fee options (eligibleUserCount populated after targeting count fetch)
   const feeOptions = buildFeeOptions(config)
-  const fee = calculateFee(feeOptions)
-  const feeWei = feeToWei(fee)
-  const baseFeePaid = formatEther(feeWei)
+  let fee = calculateFee(feeOptions)
+  let feeWei = feeToWei(fee)
+  let baseFeePaid = formatEther(feeWei)
 
   // 3. Resolve cast (Farcaster only)
   let castData: {
@@ -142,6 +143,35 @@ export async function createCommand(options: {
     // Balance check is best-effort during dry-run
   }
 
+  // 6b. Fetch eligible user count for quota surcharge (pre-funding)
+  let feeUncertain = false
+  let feeUncertainReason: string | undefined
+  const countResult = await getTargetingCount({
+    platform: config.platform,
+    minFollowers: config.targeting.minFollowers,
+    minNeynarScore: config.targeting.minNeynarScore,
+    minQuotientScore: config.targeting.minQuotientScore,
+    requirePro: config.targeting.requirePro,
+    requireVerifiedOnly: config.targeting.requireVerifiedOnly,
+    requireProfilePhoto: config.targeting.requireProfilePhoto,
+    minAccountAgeDays: config.targeting.minAccountAgeDays,
+    minXFollowers: config.targeting.minXFollowers,
+  })
+
+  if (countResult) {
+    feeOptions.eligibleUserCount = countResult.count
+    // Recalculate fee with quota surcharge
+    fee = calculateFee(feeOptions)
+    feeWei = feeToWei(fee)
+    baseFeePaid = formatEther(feeWei)
+  } else {
+    feeUncertain = true
+    feeUncertainReason = 'Could not fetch eligible user count; fee excludes quota surcharge'
+    if (!options.json) {
+      console.warn(`Warning: ${feeUncertainReason}`)
+    }
+  }
+
   // Dry-run summary
   const dryRunData: DryRunData = {
     config,
@@ -161,12 +191,13 @@ export async function createCommand(options: {
       jsonOutput({
         mode: 'dry-run',
         campaignId,
-        fee: { total: fee, formatted: formatFee(fee) },
+        fee: { total: fee, formatted: formatFee(fee), breakdown: getFeeBreakdown(feeOptions) },
         totalAmount,
         tokenPriceUsd,
         config,
         balances: { eth: ethBalance, token: tokenBalance },
         castPreview: castData ? { authorFid: castData.authorFid, author: castData.authorUsername, text: castData.text } : undefined,
+        ...(feeUncertain && { feeUncertain: true, feeUncertainReason }),
       })
     } else {
       printDryRunSummary(dryRunData)
@@ -285,6 +316,19 @@ export async function createCommand(options: {
   log(options.json, `  ${config.token.symbol} balance: ${execBalances.tokenFormatted} (need ${totalAmount}) OK`)
   log(options.json, '--- Pre-flight OK ---')
 
+  // Fee uncertainty check — abort execute if count unavailable without --allow-fee-uncertain
+  if (feeUncertain && !options.allowFeeUncertain) {
+    const msg = `Cannot determine eligible user count for fee calculation. The on-chain fee may be ` +
+      `insufficient, causing post-funding registration failure.\n` +
+      `Use --allow-fee-uncertain to proceed without quota surcharge (at your own risk).`
+    if (options.json) {
+      jsonOutput({ error: msg, feeUncertain: true, feeUncertainReason })
+    } else {
+      console.error(`\nERROR: ${msg}`)
+    }
+    process.exit(1)
+  }
+
   // Confirmation
   if (!options.yes && !options.json) {
     const confirmed = await askConfirmation('\nLIVE EXECUTION: This will send real transactions. Continue? (y/N) ')
@@ -349,6 +393,7 @@ export async function createCommand(options: {
         fundingTxHash: txHash,
         status: data.campaign.status,
         viewUrl: `https://dropcast.xyz/campaign/${data.campaign.campaign_number}`,
+        ...(feeUncertain && { feeUncertain: true, feeUncertainReason }),
       })
     } else {
       console.log('')

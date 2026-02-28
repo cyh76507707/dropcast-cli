@@ -3,7 +3,7 @@
  */
 
 import { loadConfig, type CampaignConfig } from './config.js'
-import { resolveCast, getTokenPrice } from './api.js'
+import { resolveCast, getTokenPrice, getTargetingCount } from './api.js'
 import { calculateFee, getFeeBreakdown, formatFee, type CampaignFeeOptions } from './fees.js'
 import { jsonOutput, printDryRunSummary, type DryRunData } from './output.js'
 import { getBalances } from './chain.js'
@@ -61,6 +61,32 @@ export async function validateCommand(options: {
 
   // 2. Online validation
   const feeOptions = buildFeeOptions(config)
+
+  // Fetch eligible user count for quota surcharge calculation
+  let feeUncertain = false
+  let feeUncertainReason: string | undefined
+  const countResult = await getTargetingCount({
+    platform: config.platform,
+    minFollowers: config.targeting.minFollowers,
+    minNeynarScore: config.targeting.minNeynarScore,
+    minQuotientScore: config.targeting.minQuotientScore,
+    requirePro: config.targeting.requirePro,
+    requireVerifiedOnly: config.targeting.requireVerifiedOnly,
+    requireProfilePhoto: config.targeting.requireProfilePhoto,
+    minAccountAgeDays: config.targeting.minAccountAgeDays,
+    minXFollowers: config.targeting.minXFollowers,
+  })
+
+  if (countResult) {
+    feeOptions.eligibleUserCount = countResult.count
+  } else {
+    feeUncertain = true
+    feeUncertainReason = 'Could not fetch eligible user count; fee excludes quota surcharge'
+    if (!options.json) {
+      console.warn(`Warning: ${feeUncertainReason}`)
+    }
+  }
+
   const fee = calculateFee(feeOptions)
   const breakdown = getFeeBreakdown(feeOptions)
 
@@ -131,6 +157,7 @@ export async function validateCommand(options: {
       castPreview,
       ethBalance,
       tokenBalance,
+      ...(feeUncertain && { feeUncertain: true, feeUncertainReason }),
     })
   } else {
     printDryRunSummary({

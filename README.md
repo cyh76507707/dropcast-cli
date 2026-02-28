@@ -148,7 +148,7 @@ dropcast-cli validate --config <path> [--offline] [--json]
 Create a campaign. Dry-run by default; add `--execute` for live execution.
 
 ```bash
-dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [--json]
+dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [--allow-fee-uncertain] [--json]
 ```
 
 | Flag | Required | Description |
@@ -157,6 +157,7 @@ dropcast-cli create --config <path> [--execute] [--campaign-id <uuid>] [--yes] [
 | `--execute` | No | Send real transactions (requires `PRIVATE_KEY`) |
 | `--campaign-id` | No | Reuse a UUID for idempotent retries |
 | `--yes, -y` | No | Skip interactive confirmation prompt |
+| `--allow-fee-uncertain` | No | Proceed without quota surcharge when eligible count is unavailable |
 | `--json` | No | Output as JSON |
 
 Without `--execute`, the command runs in dry-run mode: resolves on-chain data, calculates fees, checks balances, and prints a summary. No transactions are sent and `PRIVATE_KEY` is not required.

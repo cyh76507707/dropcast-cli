@@ -13,6 +13,7 @@ const {
   mockGetTokenPrice,
   mockRegisterCampaignWithRetry,
   mockGetVerifiedAddresses,
+  mockGetTargetingCount,
   MockApiError,
   mockGetBalances,
   mockGetRouterStats,
@@ -37,6 +38,7 @@ const {
     mockGetTokenPrice: vi.fn(),
     mockRegisterCampaignWithRetry: vi.fn(),
     mockGetVerifiedAddresses: vi.fn(),
+    mockGetTargetingCount: vi.fn(),
     MockApiError,
     mockGetBalances: vi.fn(),
     mockGetRouterStats: vi.fn(),
@@ -53,6 +55,7 @@ vi.mock('../src/api.js', () => ({
   getTokenPrice: mockGetTokenPrice,
   registerCampaignWithRetry: mockRegisterCampaignWithRetry,
   getVerifiedAddresses: mockGetVerifiedAddresses,
+  getTargetingCount: mockGetTargetingCount,
   ApiError: MockApiError,
 }))
 
@@ -119,6 +122,7 @@ function setupDefaultMocks() {
     verified_addresses: ['0x0000000000000000000000000000000000000000'],
     refreshed: false,
   })
+  mockGetTargetingCount.mockResolvedValue({ count: 50, cached: false })
   mockWriteRecoveryFile.mockReturnValue('.dropcast-cli/test-id.json')
   mockDeleteRecoveryFile.mockReturnValue(undefined)
 }
@@ -331,6 +335,114 @@ describe('createCommand', () => {
     expect(parsed.campaignId).toBe('550e8400-e29b-41d4-a716-446655440000')
     expect(parsed.config.platform).toBe('farcaster')
     expect(parsed.config.token.symbol).toBe('DR')
+
+    consoleSpy.mockRestore()
+  })
+
+  it('execute aborts when count unavailable and no --allow-fee-uncertain', async () => {
+    mockGetTargetingCount.mockResolvedValueOnce(null)
+
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await expect(
+      createCommand({
+        config: CONFIG_PATH,
+        execute: true,
+        yes: true,
+        json: true,
+      }),
+    ).rejects.toThrow(/process\.exit\(1\)/)
+
+    expect(process.exit).toHaveBeenCalledWith(1)
+    expect(mockFundCampaign).not.toHaveBeenCalled()
+
+    // JSON output should contain feeUncertain
+    const consoleSpy = vi.mocked(console.log)
+    const lastCall = consoleSpy.mock.calls[consoleSpy.mock.calls.length - 1]
+    const parsed = JSON.parse(lastCall[0] as string)
+    expect(parsed.error).toContain('Cannot determine eligible user count')
+    expect(parsed.feeUncertain).toBe(true)
+
+    vi.mocked(console.error).mockRestore?.()
+    vi.mocked(console.log).mockRestore?.()
+    vi.mocked(console.warn).mockRestore?.()
+  })
+
+  it('execute proceeds with --allow-fee-uncertain when count unavailable', async () => {
+    mockGetTargetingCount.mockResolvedValueOnce(null)
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await createCommand({
+      config: CONFIG_PATH,
+      execute: true,
+      yes: true,
+      json: true,
+      allowFeeUncertain: true,
+    })
+
+    expect(mockFundCampaign).toHaveBeenCalledOnce()
+    expect(mockRegisterCampaignWithRetry).toHaveBeenCalledOnce()
+
+    // Success JSON should include feeUncertain metadata (T2-2 P2 #1)
+    const lastCall = consoleSpy.mock.calls[consoleSpy.mock.calls.length - 1]
+    const parsed = JSON.parse(lastCall[0] as string)
+    expect(parsed.success).toBe(true)
+    expect(parsed.feeUncertain).toBe(true)
+    expect(parsed.feeUncertainReason).toBeDefined()
+
+    consoleSpy.mockRestore()
+    vi.mocked(console.warn).mockRestore?.()
+  })
+
+  it('fee includes surcharge when count is available', async () => {
+    // Mock 200 eligible users → tier 101-500 → 0.0009 ETH surcharge
+    mockGetTargetingCount.mockResolvedValueOnce({ count: 200, cached: false })
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await createCommand({
+      config: CONFIG_PATH,
+      execute: true,
+      yes: true,
+      json: true,
+    })
+
+    expect(mockFundCampaign).toHaveBeenCalledOnce()
+
+    // Verify the fee passed to fundCampaign includes surcharge
+    const fundCall = mockFundCampaign.mock.calls[0][0]
+    const feeAmountWei = fundCall.feeAmountWei as bigint
+    // Base fee for this config (follow+like+minFollowers+accountAge) = 0.0016
+    // Plus surcharge for 200 users (tier 101-500) = 0.0009
+    // Total = 0.0025 ETH = 2500000000000000 wei
+    expect(feeAmountWei).toBe(2500000000000000n)
+
+    // Verify baseFeePaid in recovery file includes surcharge
+    const recoveryCall = mockWriteRecoveryFile.mock.calls[0][0]
+    expect(recoveryCall.baseFeePaid).toBe('0.0025')
+
+    consoleSpy.mockRestore()
+  })
+
+  it('dry-run JSON includes fee breakdown with quotaSurcharge', async () => {
+    mockGetTargetingCount.mockResolvedValueOnce({ count: 50, cached: true })
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await createCommand({
+      config: CONFIG_PATH,
+      json: true,
+    })
+
+    const jsonStr = consoleSpy.mock.calls[0][0] as string
+    const parsed = JSON.parse(jsonStr)
+    expect(parsed.fee.breakdown).toBeDefined()
+    expect(parsed.fee.breakdown.quotaSurcharge).toBe(0.0006)
+    expect(parsed.fee.breakdown.quotaSurchargeTier).toBe('1-100')
 
     consoleSpy.mockRestore()
   })
